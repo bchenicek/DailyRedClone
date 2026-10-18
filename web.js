@@ -6,6 +6,8 @@
   var NAME_KEY = 'dailyred:v1:name';
   var names = {};            // uid -> display name, read from the shared players list
   var myName = '';
+  var lastError = '';         // last Firebase error code, shown on the page to help diagnose connection problems
+  var authListeners = [];
   try { myName = localStorage.getItem(NAME_KEY) || ''; } catch (e) { /* storage blocked */ }
 
   if (!CONFIG || !window.firebase) { window.DR_WEB = stubWeb(); return; }
@@ -17,8 +19,9 @@
   var ready = new Promise(function (resolve) {
     var done = false;
     auth.onAuthStateChanged(function (u) {
-      if (u) { if (!done) { done = true; resolve(u); } return; }
-      auth.signInAnonymously().catch(function () { if (!done) { done = true; resolve(null); } });
+      authListeners.forEach(function (f) { try { f(); } catch (e) { /* ignore */ } });
+      if (u) { lastError = ''; if (!done) { done = true; resolve(u); } return; }
+      auth.signInAnonymously().catch(function (e) { lastError = (e && (e.code || e.message)) || 'sign-in failed'; if (!done) { done = true; resolve(null); } });
     });
     setTimeout(function () { if (!done) { done = true; resolve(auth.currentUser); } }, 12000);
   });
@@ -43,6 +46,7 @@
     return {docs: docs, size: docs.length, empty: !docs.length, docChanges: function () { return []; }, metadata: {}};
   }
   function err(e) {
+    lastError = (e && (e.code || e.message)) || lastError;
     var code = e && e.code === 'permission-denied' ? 'invalid_argument' : e && e.code === 'unavailable' ? 'unavailable' : 'unavailable';
     return {code: code, message: String(e && e.message || e)};
   }
@@ -115,16 +119,23 @@
       });
     },
     canLink: function () { return true; },
+    error: function () { return lastError; },
+    signedIn: function () { return !!auth.currentUser; },
+    onAuth: function (f) { authListeners.push(f); },
     isLinked: function () { var u = auth.currentUser; return !!(u && u.providerData.some(function (p) { return p.providerId === 'google.com'; })); },
     // Returns true when the page should reload because a different (existing) account is now active.
     linkGoogle: function () {
       var provider = new firebase.auth.GoogleAuthProvider();
       var u = auth.currentUser;
-      if (!u) return Promise.resolve(false);
+      if (!u) {
+        alert("Can't connect to the sign-in service right now" + (lastError ? ' (' + lastError + ')' : '') + '. Check your connection, then reload the page and try again.');
+        return Promise.resolve(false);
+      }
       return u.linkWithPopup(provider).then(function () { return false; }, function (e) {
         if (e && e.code === 'auth/credential-already-in-use' && e.credential) {
           return auth.signInWithCredential(e.credential).then(function () { return true; });
         }
+        if (e && e.code === 'auth/provider-already-linked') return false; // already linked: nothing to do
         if (e && e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
           alert('Google sign-in did not work: ' + (e.message || e.code));
         }
