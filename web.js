@@ -54,7 +54,9 @@
       get: function () { return ref.get().then(function (d) { var data = d.data(); return {id: d.id, exists: d.exists, data: function () { return data; }, metadata: {}}; }, function (e) { throw err(e); }); },
       set: function (body) {
         var b = Object.assign({}, body);
-        if (isPlayer) b.name = (myName || '').slice(0, 24);
+        // Nobody joins the shared board until they have picked a name
+        if (isPlayer && !myName) return Promise.resolve();
+        if (isPlayer) b.name = myName.slice(0, 24);
         return ref.set(b).catch(function (e) { throw err(e); });
       },
       update: function (body) { return ref.update(body).catch(function (e) { throw err(e); }); },
