@@ -275,6 +275,17 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .plist { display: flex; flex-direction: column; gap: 9px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px; margin: -4px; }
 .party .pfoot { flex: none; }
 
+/* Practice (past days) */
+.pastpick { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; border-top: 1px solid var(--line); padding-top: 12px; }
+.pastpick label { font-size: 13px; color: var(--muted); }
+.pastpick select { font: inherit; font-size: 15px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100%; }
+.practice { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; background: color-mix(in srgb, #e6b23a 18%, var(--panel)); border: 1.5px solid #e6b23a; border-radius: var(--r); padding: 12px 14px; }
+.practice > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.practice b { font-family: var(--f-display); font-size: 18px; font-weight: 500; }
+.practice .hint { margin: 0; }
+.cdh { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.prbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
 /* Calendar */
 .cal { display: flex; flex-direction: column; gap: 10px; }
 .calh { display: flex; align-items: center; justify-content: space-between; }
@@ -359,6 +370,6 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5158576fa6"></script>
 <script src="engine.js?v=d50a22b6b3"></script>
-<script src="app.js?v=0009d76f28"></script>
+<script src="app.js?v=b455bc3fe3"></script>
 
 </body></html>
