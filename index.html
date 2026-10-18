@@ -194,6 +194,27 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .effs { display: flex; gap: 4px; flex-wrap: wrap; width: 100%; }
 .effs .ent { font-size: 12px; }
 .lbtns.three { grid-template-columns: 1fr 1fr 1fr; }
+.tgtpop { gap: 8px; }
+.tside { font-size: 12px; letter-spacing: .08em; color: #f4f2ea; padding: 0 4px; } .tside .reds { color: #ff8b84; }
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tc { display: grid; grid-template-columns: 60px 1fr; grid-template-rows: auto auto auto; column-gap: 8px; row-gap: 3px; align-items: center; text-align: left; font-family: var(--f-display); color: #fff; border-radius: 14px; padding: 6px 10px 8px 6px; border: 3px solid transparent; min-height: 104px; min-width: 0; }
+.tc.foe { background: #9c2f4c; border-color: #7d2239; }
+.tc.own { background: #3b4f9c; border-color: #2c3c7a; }
+.tc .te { grid-column: 1 / -1; font-size: 12px; padding: 1px 8px; border-radius: 4px; justify-self: start; background: #253f72; letter-spacing: .02em; }
+.tc .te.blank { visibility: hidden; }
+.tc .te.user { background: var(--c-gold); color: var(--c-ink); }
+.tc .te.good { background: #2f9e55; } .tc .te.weak { background: #6a6e7a; } .tc .te.none { background: #1b1e26; } .tc .te.norm { background: #253f72; }
+.tc .tpic { grid-row: 2 / span 2; width: 60px; height: 60px; display: grid; place-items: center; overflow: hidden; }
+.tc .tn { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tc .hpr { grid-column: 2; display: flex; align-items: center; gap: 6px; }
+.tc .bar { border-color: #1a2440; background: #1a2440; }
+.tc .thp { grid-column: 2; font-size: 13px; text-align: right; margin-top: -2px; }
+.tc.ok:hover, .tc.ok:focus-visible, .tc.grp, .tc.ok:active { background: #d8e83a; border-color: #fff; color: var(--c-ink); }
+.tc.grp { box-shadow: 0 0 0 2px var(--c-gold); }
+.tc.ok:hover .te, .tc.grp .te, .tc.ok:active .te { color: #fff; }
+.tc.no { opacity: .45; }
+.tc.empty { opacity: .3; display: flex; align-items: center; justify-content: center; }
+.tmove { align-self: center; display: flex; align-items: center; gap: 8px; background: var(--c-cream); color: var(--c-ink); border: 2.5px solid var(--c-ink); border-radius: 9px; padding: 6px 14px; font-size: 15px; letter-spacing: .05em; }
 .tgts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tgts .pbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 6px; font-size: 15px; }
 .tgts .pbtn small { font-size: 11px; color: var(--c-mute); letter-spacing: 0; }
@@ -410,6 +431,6 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5158576fa6"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=da15eda0b3"></script>
+<script src="app.js?v=5b11cb5d69"></script>
 
 </body></html>
