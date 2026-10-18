@@ -164,6 +164,44 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .plat.me { left: -8%; right: 6%; bottom: 14%; height: 20%; background: #cdd5e5; box-shadow: none; }
 .spr.big { --s: 128px !important; position: relative; z-index: 1; }
 .spr.big.me { --s: 168px !important; }
+/* Doubles: two Pokémon per side */
+.scene.dbl { height: clamp(300px, 84vw, 410px); }
+.scene.dbl .foe-card { top: 8px; left: 8px; width: min(50%, 270px); display: flex; flex-direction: column; gap: 5px; }
+.scene.dbl .me-card { right: 8px; bottom: 6px; width: min(50%, 270px); display: flex; flex-direction: column; gap: 5px; }
+.scene.dbl .wx { left: auto; right: 10px; bottom: auto; top: 47%; }
+.card.sm { padding: 4px 8px 5px; gap: 3px; box-shadow: 3px 3px 0 rgba(8,12,24,.55); }
+.card.sm .cn { font-size: 14px; }
+.card.sm .cn .lv { font-size: 12px; }
+.card.sm .hpnum { font-size: 13px; }
+.card.sm .cfoot { min-height: 0; }
+.card.sm .bsts { gap: 2px; }
+.card.turn { border-color: var(--c-gold); box-shadow: 0 0 0 2px var(--c-gold), 3px 3px 0 rgba(8,12,24,.55); }
+.sidelbl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #f4f2ea; padding: 0 2px; letter-spacing: .06em; }
+.sidelbl .reds { color: #ff8b84; }
+.sidelbl .sq i { background: #f4f2ea; } .sidelbl .sq i.cur { background: var(--c-gold); } .sidelbl .sq i.out { background: transparent; box-shadow: inset 0 0 0 1.5px #8d93a1; }
+.foe-mons { position: absolute; right: 1%; top: 10%; width: 50%; height: 38%; display: flex; align-items: flex-end; justify-content: center; }
+.foe-mons .plat { bottom: 0; height: 26%; }
+.me-mons { position: absolute; left: 0; bottom: 0; width: 52%; height: 50%; display: flex; align-items: flex-end; justify-content: center; z-index: 1; }
+.me-mons .plat.me { left: -10%; right: 4%; bottom: 0; height: 24%; }
+.spot { flex: 1; display: flex; justify-content: center; align-items: flex-end; min-width: 0; max-width: 170px; }
+.foe-mons .spot { margin-bottom: 12px; }
+.foe-mons .spot:first-of-type { transform: translateY(-10px); }
+.me-mons .spot:first-of-type { margin-bottom: -16px; }
+.me-mons .spot:last-of-type { margin-bottom: 4px; }
+.spr.dbf { --s: 92px !important; position: relative; z-index: 1; }
+.spr.dbm { --s: 118px !important; position: relative; z-index: 1; }
+.info.dbl > :last-child { margin-left: 0; }
+.effs { display: flex; gap: 4px; flex-wrap: wrap; width: 100%; }
+.effs .ent { font-size: 12px; }
+.lbtns.three { grid-template-columns: 1fr 1fr 1fr; }
+.tgts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tgts .pbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 6px; font-size: 15px; }
+.tgts .pbtn small { font-size: 11px; color: var(--c-mute); letter-spacing: 0; }
+.tgts .pbtn.foe { border-color: var(--c-red); }
+.tgts #unchoose { grid-column: 1 / -1; padding: 8px 6px; }
+.ch > span:first-child { flex: none; white-space: nowrap; }
+.slotn { font-size: 12px; background: var(--c-ink); color: var(--c-cream); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+.vsmon .spr + .spr { margin-left: -14px; }
 .card { background: var(--c-cream); border: 2px solid var(--c-ink); border-radius: 10px; padding: 7px 11px 8px; box-shadow: 4px 4px 0 rgba(8,12,24,.55); display: flex; flex-direction: column; gap: 5px; }
 .cn { display: flex; align-items: baseline; font-size: 16px; min-width: 0; text-shadow: 1px 1px 0 #d6d1bd; }
 .cn b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -257,6 +295,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .share .pbtn { --c-cream: var(--panel); --c-ink: var(--ink); background: var(--panel); color: var(--ink); border-color: var(--ink); }
 .share .pbtn.red { background: var(--accent); color: #fff; border-color: var(--accent); }
 @media (min-width: 640px) { .spr.big { --s: 150px !important; } .spr.big.me { --s: 196px !important; } }
+@media (min-width: 640px) { .spr.dbf { --s: 112px !important; } .spr.dbm { --s: 146px !important; } }
+@media (max-width: 380px) { .spr.dbf { --s: 78px !important; } .spr.dbm { --s: 100px !important; } .card.sm .cn { font-size: 13px; } }
 @media (max-width: 380px) { .cn { font-size: 14px; } .mv2 { font-size: 14px; padding: 8px 5px; } .spr.big { --s: 104px !important; } .spr.big.me { --s: 140px !important; } .msgbox { font-size: 16px; } }
 
 /* Friends */
@@ -369,7 +409,7 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5158576fa6"></script>
-<script src="engine.js?v=d50a22b6b3"></script>
-<script src="app.js?v=34e46d0dcd"></script>
+<script src="engine.js?v=fbd6bdc1a7"></script>
+<script src="app.js?v=13d39ed934"></script>
 
 </body></html>
