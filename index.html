@@ -329,6 +329,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .fl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .fc { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 14px; }
 .fc .fn, .pcell .fn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc:has(.watch) { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+.fc .watch { padding: 3px 10px; font-size: 12px; }
 .fc .fs { font-size: 13px; padding: 1px 8px; border-radius: 999px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
 .f-flaw .fs { background: #2f9e55; color: #fff; } .f-win .fs { background: #e6b23a; color: #2a2100; } .f-loss .fs { background: var(--panel2); color: var(--ink); }
 .f-hid .fs { background: var(--ink); color: var(--panel); }
@@ -433,6 +435,6 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5158576fa6"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=4c80055654"></script>
+<script src="app.js?v=37a3e0182c"></script>
 
 </body></html>
