@@ -28,7 +28,7 @@
     <div><span class="lbl">First try</span><b>${t?t.result==="win"?`Won${t.lost?`, lost ${t.lost}`:", flawless"}`:t.result==="forfeit"?"Retried":"Lost":"\u2014"}</b></div>
     <div><span class="lbl">Flawless</span><b>${e?`Attempt ${e.n}`:"Not yet"}</b></div>
     <div class="pips" aria-label="Today's attempts">${i}</div>
-  </div>`}var Ue=a=>new Date(a+"T12:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});function Ls(){let a=[],[e,t,i]=M.split("-").map(Number);for(let s=1;;s++){let n=Fs(new Date(e,t-1,i-s));if(n<et)break;a.push(n)}return a}var Fs=a=>`${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`;function Ks(){let a=Ls();return a.length?`<div class="pastpick"><label for="pastday">Replay a past day for fun</label>
+  </div>`}var Ue=a=>new Date(a+"T12:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});function Ls(){let a=[],[e,t,i]=M.split("-").map(Number);for(let s=1;;s++){let n=Fs(new Date(e,t-1,i-s));if(n<et)break;a.push(n)}return a}var Fs=a=>`${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`;function Ks(){let a=Ls();return a.length?`<div class="pastpick"><label for="pastday">Replay a past day</label>
     <select id="pastday"><option value="">Choose a day\u2026</option>${a.map(e=>`<option value="${e}">No. ${ee(e)} \xB7 ${k(Ue(e))}</option>`).join("")}</select></div>`:""}function Wt(){return`<div class="practice" id="practice"><div><span class="lbl">Practice</span><b>No. ${ee(R)} \xB7 ${k(Ue(R))}</b><span class="hint">Doesn't count toward stats, attempts or the Friends board.</span></div>
     <button class="ghost" id="back-today" ${Z()?"disabled":""}>Back to today</button></div>`}function at(a){Z()||(R=a===M?null:a,m=null,Se(),xe(),R||fe(),ie="play",K(),window.scrollTo(0,0))}function js(){let a=!!m,e=ts();return`
   ${a?R?Wt():"":`${We()}
@@ -43,7 +43,7 @@
       <div class="vsmon">${ue(Te[e].species,!1,96)}<div><span class="lbl">Your lead</span><b>${k(Te[e].species)}</b></div></div>
     </div>
     <button class="go" id="start">Battle Red</button>
-    <p class="note">${R?"Same team and luck as that day. Just for fun: nothing here is saved or counted.":"Every attempt today uses the same luck. Same choices, same result."}</p>
+    <p class="note">${R?"Same team and luck as that day. Nothing here is saved or counted.":"Every attempt today uses the same luck. Same choices, same result."}</p>
     ${R?"":bt()}
     ${R?"":Ks()}
   </section>`}
