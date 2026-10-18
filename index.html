@@ -124,6 +124,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 /* Sprites */
 .spr { display: inline-block; image-rendering: pixelated; background-repeat: no-repeat; flex: none; width: var(--s); height: var(--s); background-image: url(front.png); background-size: calc(var(--s) * var(--cols)) calc(var(--s) * var(--rows)); background-position: calc(var(--s) * var(--c) * -1) calc(var(--s) * var(--r) * -1); }
 .spr.bk { background-image: url(back.png); }
+.spr.subst { background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgBAMAAAAQtmoLAAAAIVBMVEUAAAAAAABKYzpSUkp7jFqUpWulvYS9vbW91pzWzsX////yT6gnAAAAAXRSTlMAQObYZgAAATtJREFUWMPtlE1qAkEQhduJB7B0EOJKJ50h5AABl3YewQPI4HYmzsMreIDIbBMEaZeBEKZOmY0HqCzc9Qe9649+9UM7l0gkEonEzcD1WBly7obd3C5krN1TN7ILJYD9sbEnQluRrM3318dtt5uQ1iLePvZdJ3yhNdN62x3fSVqFjBWv2DJltchVsTU2yz2kYvvDjU0YwAMyflYg2IrIAwCEb2Dl7E8AMAuZBA8AhVUom0kAEOhhq7qkP8cTpqyNQlbrRfU05S43CjO9qPY5kS9sRcx6VdVPH2AT7rRXVT0BCKZMD5deVWPhjUL2Gn+1jwUbj2CZhMfyHGNBskGwNLbAMh6+SHLjLaMbwK/i4bEgW3gvltULuD+PUbbAQmzbHRaSw9oj5wYizgkCVvKP39WJyMglEolEInEz/gCH72C9Catf4wAAAABJRU5ErkJggg==); background-size: var(--s) var(--s); background-position: 0 0; }
+.spr.subst.bk { background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgBAMAAAAQtmoLAAAAHlBMVEUAAAAAAABKYzpSUkp7jFqUpWulvYS91pzWzsX///+0c4bQAAAAAXRSTlMAQObYZgAAAQlJREFUWMPtk7FOw0AQRO8sPiAbHSA652RSIxpaLhosapRYSknkTH4gEt9Aiaj4W4qzC7pJR7Gv3qeZtfdCcBzHcRyVHMLV8wXzDdvwdL5IKHb6aHWhy2NPnvVSeexJnmSjYU+SfFTXaEaSJMdbMWLdkzwCw0EU7tfkEQCGgyYsd7stgP22rKT5OHYAgJ+vrmgCEgBgv8VCq2SY0YRmM89vtIDYTfMmNrqZEjLfNSGV2qdXhZimSsxiwrxDEXdY5jq/unvQGr2hRrx+fkvCdYf6mbJJQsyowkCatAGA2umFbJXLA4BUU5T38EdAEU+1zLWk92BmCUCxJP+5EM1sEaJ6rY7jOI7zH/kFsnlNwQVv0/QAAAAASUVORK5CYII=); }
 
 /* Types (fixed game colors; white text works on both themes) */
 .type { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; padding: 2px 7px; border-radius: 4px; }
@@ -438,6 +440,6 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=8300f192f4"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=18d7b5b7cb"></script>
+<script src="app.js?v=04575f0cb6"></script>
 
 </body></html>
