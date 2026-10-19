@@ -377,6 +377,12 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .pastpick { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; border-top: 1px solid var(--line); padding-top: 12px; }
 .pastpick label { font-size: 13px; color: var(--muted); }
 .pastpick select { font: inherit; font-size: 15px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100%; }
+.selwrap { position: relative; display: inline-flex; max-width: 100%; }
+/* Desktop: draw our own arrow so it sits as far from the right edge as the text does from the left (phones keep their native look) */
+@media (hover: hover) and (pointer: fine) {
+  .pastpick select { -webkit-appearance: none; appearance: none; padding-right: 34px; cursor: pointer; }
+  .selwrap::after { content: ""; position: absolute; right: 13.5px; top: 50%; margin-top: -2px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--ink); pointer-events: none; }
+}
 .practice { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; background: color-mix(in srgb, #e6b23a 18%, var(--panel)); border: 1.5px solid #e6b23a; border-radius: var(--r); padding: 12px 14px; }
 .practice > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .practice b { font-family: var(--f-display); font-size: 18px; font-weight: 500; }
@@ -468,7 +474,7 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5c726aa06f"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=3f53369cfa"></script>
+<script src="app.js?v=2b64263bed"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
