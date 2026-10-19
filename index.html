@@ -242,8 +242,10 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .cn .lv { margin-left: auto; padding-left: 6px; font-size: 14px; flex: none; }
 .hpr { display: flex; align-items: center; gap: 7px; }
 .hpl { background: var(--c-hp); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; line-height: 1.35; flex: none; }
-.console .bar, .party .bar { flex: 1; height: 9px; background: #e2dfcf; border: 2.5px solid var(--c-ink); border-radius: 7px; overflow: hidden; margin: 0; display: block; }
-.console .bar i, .party .bar i { display: block; height: 100%; border-radius: 0; }
+.console .bar, .party .bar { flex: 1; height: 9px; background: #e2dfcf; border: 2.5px solid var(--c-ink); border-radius: 7px; overflow: hidden; margin: 0; display: block;
+  /* iOS Safari stops clipping to the rounded ends while the width animates; these keep the clip in place */
+  isolation: isolate; -webkit-mask-image: -webkit-radial-gradient(white, black); transform: translateZ(0); }
+.console .bar i, .party .bar i { display: block; height: 100%; border-radius: 4.5px 0 0 4.5px; }
 .console .hp-g, .party .hp-g { background: #49c070; } .console .hp-y, .party .hp-y { background: #e8b43a; } .console .hp-r, .party .hp-r { background: #e3504a; }
 .cfoot { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 16px; }
 .sq { display: flex; gap: 5px; } .sq i { width: 8px; height: 8px; border-radius: 1px; background: var(--c-ink); }
