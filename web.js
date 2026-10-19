@@ -14,6 +14,9 @@
   firebase.initializeApp(CONFIG);
   var auth = firebase.auth();
   var fs = firebase.firestore();
+  // Keep a copy of the database on the phone: the app can read friends' results and save progress with no
+  // connection, and anything saved offline is sent automatically once the phone is back online
+  try { fs.enablePersistence({synchronizeTabs: true}).catch(function () { /* another tab or private mode: works online only */ }); } catch (e) { /* ignore */ }
 
   // Resolves with the signed-in user (anonymous unless linked to Google).
   var ready = new Promise(function (resolve) {

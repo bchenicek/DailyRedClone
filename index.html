@@ -6,6 +6,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Archivo+Narrow:wght@700&family=Anton&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daily Red">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e9eef3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f151c" media="(prefers-color-scheme: dark)">
 <script>window.DR_WEB_BUILD=true</script>
 </head><body>
 <style>
@@ -438,8 +446,20 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="config.js?v=d8f79ac2ee"></script>
-<script src="web.js?v=8300f192f4"></script>
+<script src="web.js?v=5c726aa06f"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=c76c6d0ac7"></script>
+<script src="app.js?v=d661e660ee"></script>
 
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; }).then(function (reg) {
+    var send = function () {
+      var urls = performance.getEntriesByType('resource').map(function (e) { return e.name; })
+        .filter(function (u) { return /^https:\/\/(www\.gstatic|fonts\.googleapis|fonts\.gstatic)\.com\//.test(u); });
+      if (reg.active && urls.length) reg.active.postMessage({cacheUrls: urls});
+    };
+    if (document.readyState === 'complete') setTimeout(send, 1500); else addEventListener('load', function () { setTimeout(send, 1500); });
+  }).catch(function () {});
+}
+</script>
 </body></html>
