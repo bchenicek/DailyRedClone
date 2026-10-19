@@ -17,6 +17,8 @@
 <script>window.DR_WEB_BUILD=true</script>
 </head><body>
 <style>
+/* No double-tap zoom (taps on the battle screen come quickly); pinch zoom still works */
+html, body, button, a, input, select, summary { touch-action: manipulation; }
 /* Layout: one centered column, a summit-night header band, cards only for Pokémon and the battle field. */
 :root {
   --bg: #e9eef3; --panel: #ffffff; --panel2: #f3f6f9; --ink: #18212b; --muted: #5b6876; --line: #d3dbe3;
