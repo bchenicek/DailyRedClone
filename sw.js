@@ -1,9 +1,9 @@
 // Daily Red offline support. Saves everything the game needs on the phone so it opens without a connection.
 // Built by build/build-web.sh, which fills in VERSION and the file list.
-const VERSION = '95a5696e35';
+const VERSION = 'e030f7f286';
 const CACHE = 'dailyred-' + VERSION;
 const EXTERNAL = 'dailyred-external'; // Firebase code and fonts from Google's servers (kept across updates)
-const PRECACHE = ["./", "manifest.webmanifest", "pool.json", "desc.json", "sprites.json", "battletext.json", "front.png", "back.png", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "app.js?v=bd1c0ba544", "engine.js?v=fbd6bdc1a7", "web.js?v=5c726aa06f", "config.js?v=d8f79ac2ee"];
+const PRECACHE = ["./", "manifest.webmanifest", "pool.json", "desc.json", "sprites.json", "battletext.json", "front.png", "back.png", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "app.js?v=066be6cad8", "engine.js?v=fbd6bdc1a7", "web.js?v=5c726aa06f", "config.js?v=d8f79ac2ee"];
 const EXTERNAL_HOSTS = ['www.gstatic.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', event => {
