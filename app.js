@@ -60,7 +60,7 @@
         <div class="ctl"><span class="lbl">Red</span>${ke("ediff",ee,G.diff)}</div>
       </section>
       <section class="prebattle"><button class="go" id="e-start">${r?"Start a new run":"Start a run"}</button>
-        <p class="note">Each battle's luck is new, so a run can't be replayed. Progress is saved if you leave mid-run.</p></section>`}let a=w,s=ze(),i=U(a.mode),o=Dn(d?d.lead:i?s:s[0]);return`${`<div class="practice endless-bar"><div><span class="lbl">Endless run</span><b>Battle ${a.n} \xB7 Streak ${a.wins}</b><span class="hint">${S(be(a.mode).label)} \xB7 ${S(ee.find(r=>r.id===a.diff).label)}</span></div>
+        <p class="note">Each battle's luck is new, so a run can't be replayed. Progress is saved if you leave mid-run.</p></section>`}let a=w,s=ze(),i=U(a.mode),o=Dn(d?d.lead:i?s:s[0]);return`${`<div class="practice endless-bar"><div><span class="lbl">Endless run</span><b>Battle ${a.n}</b><span class="hint">${S(be(a.mode).label)} \xB7 ${S(ee.find(r=>r.id===a.diff).label)}</span></div>
     ${d?"":'<button class="ghost" id="e-quit">End run</button>'}</div>`}
     ${d?'<section id="battle" class="battle"></section>':`<section class="prebattle">
       <div class="vs"><div class="vsmon">${ve(V(),g.mode).slice(0,s.length).map(r=>fe(r.species,!1,i?72:96)).join("")}<div><span class="lbl">Red leads with</span><b>${ve(V(),g.mode).slice(0,s.length).map(r=>S(r.species)).join(" &amp; ")}</b></div></div>
