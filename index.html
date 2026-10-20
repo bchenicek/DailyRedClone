@@ -122,6 +122,7 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .leadbtns { display: flex; flex-direction: column; gap: 4px; }
 .leadbtns .setlead { padding: 5px 10px; font-size: 12px; }
 .kv { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin: 0; }
+.kv .wide { grid-column: span 2; }
 .kv div { min-width: 0; } .kv dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .kv dd { margin: 0; font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 0; padding: 0; }
@@ -478,7 +479,7 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5c726aa06f"></script>
 <script src="engine.js?v=fbd6bdc1a7"></script>
-<script src="app.js?v=7a2bc07000"></script>
+<script src="app.js?v=6a507dada1"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
