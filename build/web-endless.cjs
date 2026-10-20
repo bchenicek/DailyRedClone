@@ -1,0 +1,10 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\.|gstatic/, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8766/'); await p.evaluate(() => { localStorage.clear(); localStorage.setItem('dailyred:v1:name', 'Tester'); }); await p.reload(); await p.waitForSelector('#start');
+  console.log('tabs:', await p.$$eval('.tabs button', es => es.map(e => e.textContent).join(', ')));
+  await p.click('#tab-endless'); await p.click('#e-start'); await p.click('#e-battle'); await p.waitForSelector('button[data-move]', {timeout: 30000});
+  await p.evaluate(() => window.__drDebug.winBattle()); await p.click('#e-next'); await p.click('#e-battle'); await p.waitForSelector('#run', {timeout: 30000}); await p.click('#run'); await p.click('#run-yes'); await p.waitForTimeout(300);
+  await p.click('#tab-stats'); await p.waitForTimeout(300);
+  console.log('stats:', await p.$eval('main', e => e.innerText.replace(/\n+/g, ' | ').slice(0, 500)));
+  console.log('errors', errs); await b.close(); })();

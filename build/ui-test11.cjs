@@ -1,0 +1,17 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+const FAKE = `(() => { const store = {'data/users/u_me/reset': {date: '${today}', before: Date.now()}, 'data/users/u_me/att_${today}': {list: [{at: 1, date: '${today}', mode: 'classic', diff: 'smart', n: 1, result: 'loss', lost: 6, redLeft: 6, turns: 3, lead: 'X', kos: {}, fainted: [], redKos: {}}]}};
+  window.__store = store;
+  const docRef = path => ({ set: async b => { store[path] = b; }, delete: async () => { delete store[path]; } });
+  const q = p => { const run = () => { const docs = Object.keys(store).filter(k => k.startsWith(p + '/') && k.split('/').length === p.split('/').length + 1).map(k => ({id: k.split('/').pop(), exists: true, data: () => store[k]})); return {docs}; };
+    const o = { limit: () => o, get: async () => run(), onSnapshot: n => { setTimeout(() => n(run()), 50); return () => {}; } }; return o; };
+  window.claude = { use: async n => n === 'db' ? {doc: docRef, collection: q} : n === 'user' ? {id: async () => 'u_me', profiles: async () => ({})} : null };
+})();`;
+(async () => { const b = await chromium.launch(); const ctx = await b.newContext(); await ctx.addInitScript(FAKE);
+  const p = await ctx.newPage(); await p.route(/fonts\./, r => r.abort());
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start');
+  await p.evaluate(t => localStorage.setItem('dailyred:v1:attempts', JSON.stringify([{at: 2, date: t, mode: 'classic', diff: 'smart', n: 1, result: 'win', lost: 0, redLeft: 0, turns: 9, lead: 'Y', kos: {}, fainted: [], redKos: {}}])), today);
+  await p.reload(); await p.waitForTimeout(1200);
+  console.log('today:', await p.$eval('#today', e => e.innerText.replace(/\n/g, ' ')));
+  console.log('cloud att doc:', await p.evaluate(t => JSON.stringify(window.__store['data/users/u_me/att_' + t]), today));
+  await b.close(); })();

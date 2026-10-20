@@ -1,0 +1,14 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const FAKE = `(() => { const deep = o => { Object.values(o).forEach(v => v && typeof v === 'object' && deep(v)); return Object.freeze(o); };
+  const store = {'data/users/u_me/prefs': {mode: 'classic', diff: 'smart', fast: false, leads: {}, t: Date.now() + 100000}};
+  const docRef = path => ({ set: async b => { store[path] = b; }, delete: async () => { delete store[path]; } });
+  const q = p => { const run = () => ({docs: Object.keys(store).filter(k => k.startsWith(p + '/') && k.split('/').length === p.split('/').length + 1).map(k => ({id: k.split('/').pop(), exists: true, data: () => deep(JSON.parse(JSON.stringify(store[k])))}))});
+    const o = { limit: () => o, get: async () => run(), onSnapshot: n => { setTimeout(() => n(run()), 50); return () => {}; } }; return o; };
+  window.claude = { use: async n => n === 'db' ? {doc: docRef, collection: q} : n === 'user' ? {id: async () => 'u_me', profiles: async () => ({})} : null };
+})();`;
+(async () => { const b = await chromium.launch(); const ctx = await b.newContext(); await ctx.addInitScript(FAKE);
+  const p = await ctx.newPage(); await p.route(/fonts\./, r => r.abort()); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.waitForTimeout(800);
+  await p.click('button.setlead[data-lead="2"]'); await p.waitForTimeout(200);
+  console.log('lead index marked:', await p.$$eval('.team:not(.red) .mon', ms => ms.findIndex(m => m.classList.contains('is-lead'))), 'errors', errs);
+  await b.close(); })();

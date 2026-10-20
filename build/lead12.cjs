@@ -1,0 +1,16 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\./, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  await p.click('[data-mode="classic"]'); await p.click('[data-fmt="doubles"]');
+  const state = async () => (await p.$eval('.vs', e => e.innerText.split('\n').slice(-1)[0])) + ' | tags: ' + (await p.$$eval('.team:not(.red) .leadtag', es => es.map(e => e.closest('h3').firstChild.textContent + '=' + e.textContent).join(', ')));
+  console.log('start:', await state());
+  await p.click('[data-lead1="3"]'); console.log('L1=4th:', await state());
+  await p.click('[data-lead2="5"]'); console.log('L2=6th:', await state());
+  await p.click('[data-lead1="5"]'); console.log('L1=6th (swap):', await state());
+  await p.screenshot({path: SP + 'lead12.png', fullPage: true});
+  await p.click('[data-fmt="singles"]'); console.log('singles buttons:', await p.$$eval('.setlead', es => es.map(e => e.textContent).slice(0, 3).join(', ')));
+  await p.click('[data-fmt="doubles"]'); await p.click('#start'); await p.waitForSelector('button[data-move]', {timeout: 30000});
+  console.log('battle actives:', await p.$$eval('.me-card .card .cn b', es => es.map(e => e.textContent).join(' & ')));
+  console.log('errors', errs); await b.close(); })();

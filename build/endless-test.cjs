@@ -1,0 +1,31 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\./, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  const dailyTeam = await p.$$eval('.team:not(.red) .mon h3', es => es.map(e => e.textContent.replace(/Lead.*/, '')).join(','));
+  await p.click('#tab-endless'); await p.waitForTimeout(200);
+  await p.screenshot({path: SP + 'endless-setup.png', fullPage: true});
+  await p.click('[data-emode="random"]'); await p.click('[data-ediff="simple"]'); await p.click('#e-start'); await p.waitForTimeout(200);
+  const t1 = await p.$$eval('.team .mon h3', es => es.map(e => e.textContent.replace(/Lead.*/, '')).join(','));
+  console.log('battle 1 team:', t1, '| differs from daily:', t1 !== dailyTeam);
+  console.log('bar:', await p.$eval('.endless-bar', e => e.innerText.replace(/\n/g, ' | ')));
+  await p.click('#e-battle'); await p.waitForSelector('button[data-move]', {timeout: 30000});
+  await p.click('button[data-move="1"]'); await p.click('#use'); await p.waitForTimeout(300);
+  // leave mid-battle and come back: should resume
+  await p.click('#tab-play'); await p.waitForTimeout(200);
+  const dt2 = await p.$$eval('.team:not(.red) .mon h3', es => es.map(e => e.textContent.replace(/Lead.*/, '')).join(',')); console.log('daily untouched:', dt2 === dailyTeam, dailyTeam, '/', dt2);
+  await p.click('#tab-endless'); await p.waitForTimeout(400);
+  console.log('resumed strip:', await p.$eval('.bstrip', e => e.innerText.replace(/\n/g, ' ')));
+  await p.evaluate(() => window.__drDebug.winBattle()); await p.waitForTimeout(300);
+  console.log('after win:', await p.$eval('.result', e => e.innerText.replace(/\n/g, ' | ').slice(0, 200)));
+  await p.screenshot({path: SP + 'endless-win.png'});
+  await p.click('#e-next'); await p.waitForTimeout(200);
+  const t2 = await p.$$eval('.team .mon h3', es => es.map(e => e.textContent.replace(/Lead.*/, '')).join(','));
+  console.log('battle 2 team:', t2, '| new team:', t2 !== t1, '| bar:', await p.$eval('.endless-bar', e => e.innerText.replace(/\n/g, ' | ')));
+  // lose battle 2 by running
+  await p.click('#e-battle'); await p.waitForSelector('#run', {timeout: 30000}); await p.click('#run'); await p.click('#run-yes'); await p.waitForTimeout(300);
+  console.log('after loss:', await p.$eval('main', e => e.innerText.replace(/\n/g, ' | ').slice(0, 420)));
+  await p.screenshot({path: SP + 'endless-over.png', fullPage: true});
+  console.log('daily attempts recorded (should be 0):', await p.evaluate(() => JSON.parse(localStorage.getItem('dailyred:v1:attempts') || '[]').length));
+  console.log('errors', errs); await b.close(); })();

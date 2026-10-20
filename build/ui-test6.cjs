@@ -1,0 +1,13 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+(async () => { const b = await chromium.launch();
+  const p = await b.newPage({viewport: {width: 390, height: 760}, hasTouch: true, isMobile: true}); await p.route(/fonts\./, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  await p.click('#start'); await p.waitForTimeout(2500);
+  await p.screenshot({path: SP + 'b1.png'});
+  await p.click('button[data-move="2"]'); await p.waitForTimeout(300); await p.screenshot({path: SP + 'b2.png'});
+  await p.click('#open-party'); await p.waitForTimeout(300); await p.click('[data-pick="3"]'); await p.waitForTimeout(200); await p.click('#p-summary'); await p.waitForTimeout(200);
+  await p.screenshot({path: SP + 'b3.png'});
+  await p.click('#p-cancel'); await p.click('#p-close'); await p.click('button[data-move="2"]'); await p.waitForTimeout(900); await p.screenshot({path: SP + 'b4.png'});
+  console.log('errors', errs); await b.close(); })();

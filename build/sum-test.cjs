@@ -1,0 +1,12 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true}); await p.route(/fonts\./, r => r.abort());
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  await p.click('#start'); await p.waitForSelector('#open-party', {timeout: 20000}); await p.click('#open-party');
+  await p.click('[data-pick="4"]'); await p.waitForTimeout(150);
+  const box = async () => { const r = await p.$eval('.pfoot', e => { const b = e.getBoundingClientRect(); return Math.round(b.top + scrollY); }); const h = await p.$eval('#party', e => e.offsetHeight); return `footer y=${r} panel h=${h}`; };
+  console.log('before summary:', await box());
+  await p.click('#p-summary'); await p.waitForTimeout(150);
+  console.log('with summary:  ', await box(), 'summary visible:', await p.$eval('.summ', e => { const r = e.getBoundingClientRect(), l = document.getElementById('plist').getBoundingClientRect(); return r.top >= l.top - 1 && r.bottom <= l.bottom + 1; }));
+  await (await p.$('#party')).screenshot({path: SP + 'sum.png'});
+  await b.close(); })();

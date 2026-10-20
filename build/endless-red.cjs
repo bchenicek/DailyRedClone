@@ -1,0 +1,10 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\./, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  await p.click('#tab-endless'); await p.click('[data-efmt="doubles"]'); await p.click('#e-start'); await p.waitForTimeout(200);
+  await p.click('#redteam summary'); await p.waitForTimeout(100);
+  console.log('before battle:', await p.$eval('#redteam', e => e.open + ' | ' + e.innerText.replace(/\n+/g, ' | ').slice(0, 160)));
+  await p.click('#e-battle'); await p.waitForSelector('button[data-move]', {timeout: 30000});
+  console.log('during battle, section present:', !!(await p.$('#redteam')), '| still open:', await p.$eval('#redteam', e => e.open));
+  console.log('errors', errs); await b.close(); })();

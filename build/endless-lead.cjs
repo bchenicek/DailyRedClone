@@ -1,0 +1,14 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\.|gstatic/, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8766/'); await p.evaluate(() => { localStorage.clear(); localStorage.setItem('dailyred:v1:name', 'Tester'); }); await p.reload(); await p.waitForSelector('#start');
+  const dailyLead = await p.$eval('.vs', e => e.innerText.split('\n').slice(-1)[0]);
+  await p.click('#tab-endless'); await p.click('[data-efmt="doubles"]'); await p.click('#e-start'); await p.waitForTimeout(200);
+  await p.click('[data-lead1="3"]'); await p.click('[data-lead2="5"]'); await p.waitForTimeout(100);
+  const before = await p.$eval('.vs', e => e.innerText.split('\n').slice(-1)[0]);
+  await p.reload(); await p.waitForSelector('#start'); await p.click('#tab-endless'); await p.waitForTimeout(300);
+  const after = await p.$eval('.vs', e => e.innerText.split('\n').slice(-1)[0]);
+  console.log('leads before reload:', before, '| after:', after, '| same:', before === after);
+  await p.click('#tab-play'); await p.waitForTimeout(200);
+  console.log('daily lead unchanged:', dailyLead === await p.$eval('.vs', e => e.innerText.split('\n').slice(-1)[0]));
+  console.log('errors', errs); await b.close(); })();

@@ -1,0 +1,13 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+const W = +(process.argv[2] || 390), H = +(process.argv[3] || 844);
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: W, height: H}}); await p.route(/fonts\./, r => r.abort());
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start'); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#start');
+  await p.click('[data-mode="chaos"]'); await p.click('[data-fmt="doubles"]'); await p.waitForTimeout(200);
+  await p.screenshot({path: SP + `pre-${W}.png`});
+  await p.click('#start'); await p.waitForSelector('button[data-move]', {timeout: 30000});
+  await p.evaluate(() => document.getElementById('battle').scrollIntoView({block: 'start'}));
+  await p.screenshot({path: SP + `menu-${W}.png`});
+  await p.click('button[data-move="1"]'); await p.waitForTimeout(100);
+  await p.screenshot({path: SP + `chosen-${W}.png`});
+  await b.close(); })();

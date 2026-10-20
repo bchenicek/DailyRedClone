@@ -1,0 +1,17 @@
+const {chromium} = require('/home/claude/.npm-global/lib/node_modules/playwright');
+const SP = '/tmp/claude-0/-home-claude/9cbba1a6-65b3-5421-abbb-d30fa90d18f7/scratchpad/';
+(async () => { const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 390, height: 844}}); await p.route(/fonts\./, r => r.abort());
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/test.html'); await p.waitForSelector('#start');
+  await p.evaluate(() => localStorage.setItem('dailyred:v1:attempts', JSON.stringify([{date: '2026-10-18', mode: 'classicD', diff: 'smart', n: 1, result: 'win', lost: 0, redLeft: 0, turns: 12, lead: 'A & B', at: 1, kos: {Glimmora: 3}, fainted: [], redKos: {}}])));
+  await p.reload(); await p.waitForSelector('#start');
+  await p.click('#tab-stats'); await p.waitForTimeout(200);
+  console.log('stats singles:', await p.$eval('main', e => e.innerText.slice(0, 160).replace(/\n/g, ' | ')));
+  await p.click('[data-vfmt="doubles"]'); await p.waitForTimeout(200);
+  console.log('stats doubles:', await p.$eval('main', e => e.innerText.slice(0, 260).replace(/\n/g, ' | ')));
+  await p.screenshot({path: SP + 'stats-dbl.png'});
+  await p.click('#tab-friends'); await p.waitForTimeout(200);
+  console.log('friends:', await p.$eval('#friends-strip', e => e.innerText.replace(/\n/g, ' | ')));
+  await p.click('#tab-play'); await p.waitForTimeout(200);
+  console.log('play fmt:', await p.$eval('[aria-checked="true"][data-fmt]', e => e.textContent));
+  console.log('errors', errs); await b.close(); })();
