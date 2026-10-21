@@ -956,7 +956,9 @@ function renderBattle() {
   let deck = '', tgtPop = '';
   if (force && UI.fhide) {
     // Replacement menu hidden so the team info below can be read; one button brings it back
-    deck = `<div class="menu"><div class="ch"><span>Choose a POKéMON to send out.</span></div><div class="lbtns" style="grid-template-columns: 1fr"><button class="pbtn" id="open-party">POKéMON</button></div></div>`;
+    deck = `<div class="menu"><div class="ch"><span>Choose a POKéMON to send out.</span></div>${UI.run
+      ? `<p class="runq">${S.endless ? 'Run? This forfeits the battle and ends your endless run.' : 'Run? This restarts the battle and counts as an attempt.'}</p><div class="lbtns"><button class="pbtn" id="run-yes">RUN</button><button class="pbtn" id="run-no">CANCEL</button></div>`
+      : '<div class="lbtns"><button class="pbtn" id="open-party">POKéMON</button><button class="pbtn" id="run">RUN</button></div>'}</div>`;
   } else if (!choosing || force) {
     const last = [...S.messages].reverse().find(m => !m.startsWith('—')) || '';
     deck = `<button class="msgbox" id="msgbox" aria-live="polite"><span>${esc(last).replace(/\*\*(.+?)\*\*/g, '$1')}</span><i class="tri" aria-hidden="true"></i></button>`;
@@ -1510,7 +1512,7 @@ document.addEventListener('click', e => {
   if (t.id === 'unchoose' || t.id === 'tgt-cancel') { UI.chosen = -1; renderBattle(); return; }
   if (t.id === 'msgbox') { advance?.(); return; }
   if (t.id === 'p-hide') { UI.fhide = true; UI.party = false; UI.psel = -1; UI.summary = false; renderBattle(); return; }
-  if (t.id === 'open-party') { UI.fhide = false; UI.party = true; UI.psel = -1; UI.summary = false; renderBattle(); return; }
+  if (t.id === 'open-party') { UI.fhide = false; UI.run = false; UI.party = true; UI.psel = -1; UI.summary = false; renderBattle(); return; }
   if (t.id === 'p-close' || t.id === 'p-cancel') { if (t.id === 'p-cancel' && UI.psel >= 0) { UI.psel = -1; UI.summary = false; } else UI.party = false; renderBattle(); return; }
   if (t.id === 'open-party') { UI.chosen = -1; }
   if (t.dataset.pick !== undefined) { const i = +t.dataset.pick; UI.summary = UI.psel === i ? UI.summary : false; UI.psel = i; renderBattle(); return; }
