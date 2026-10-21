@@ -795,8 +795,8 @@ function hpClass(f: number) { return f > 0.5 ? 'hp-g' : f > 0.2 ? 'hp-y' : 'hp-r
 
 // UI state for the battle screen (which move is highlighted, party screen, etc.)
 // In doubles, `slot` is the Pokémon you're choosing for and `pending` holds the choices already made this turn.
-const UI = {sel: 0, chosen: -1, party: false, psel: -1, summary: false, run: false, slot: 0, pending: [] as string[]};
-function resetUI() { UI.party = false; UI.psel = -1; UI.summary = false; UI.run = false; UI.chosen = -1; UI.slot = 0; UI.pending = []; }
+const UI = {sel: 0, chosen: -1, party: false, psel: -1, summary: false, run: false, slot: 0, pending: [] as string[], fhide: false};
+function resetUI() { UI.fhide = false; UI.party = false; UI.psel = -1; UI.summary = false; UI.run = false; UI.chosen = -1; UI.slot = 0; UI.pending = []; }
 const STAT_SHORT: Record<string, string> = {atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva'};
 const WEATHER_NAME: Record<string, string> = {RainDance: 'Rain', SunnyDay: 'Harsh sunlight', Sandstorm: 'Sandstorm', Snowscape: 'Snow', DesolateLand: 'Extreme sun', PrimordialSea: 'Heavy rain', DeltaStream: 'Strong winds'};
 
@@ -902,7 +902,7 @@ function slotBack() {
   const need = needSlots(req); const at = need.indexOf(UI.slot);
   if (at <= 0) return;
   UI.slot = need[at - 1]; delete UI.pending[UI.slot];
-  UI.chosen = -1; UI.sel = 0; UI.party = false; UI.psel = -1; UI.summary = false; UI.run = false;
+  UI.fhide = false; UI.chosen = -1; UI.sel = 0; UI.party = false; UI.psel = -1; UI.summary = false; UI.run = false;
   renderBattle();
 }
 
@@ -936,7 +936,8 @@ function renderBattle() {
     </div>`;
   };
   const force = choosing && !!req?.forceSwitch;
-  if (force) UI.party = true;
+  if (!force) UI.fhide = false;
+  if (force && !UI.fhide) UI.party = true;
 
   if (S.ended && !S.playing) { el.innerHTML = stripHTML() + replayBarHTML() + resultHTML() + logHTML(); scrollLog(); return; }
 
@@ -944,7 +945,10 @@ function renderBattle() {
   const need = choosing ? needSlots(req) : [];
   const canBack = dbl && need.indexOf(slot) > 0;
   let deck = '', tgtPop = '';
-  if (!choosing || force) {
+  if (force && UI.fhide) {
+    // Replacement menu hidden so the team info below can be read; one button brings it back
+    deck = `<div class="menu"><div class="ch"><span>Choose a POKéMON to send out.</span></div><div class="lbtns" style="grid-template-columns: 1fr"><button class="pbtn" id="open-party">POKéMON</button></div></div>`;
+  } else if (!choosing || force) {
     const last = [...S.messages].reverse().find(m => !m.startsWith('—')) || '';
     deck = `<button class="msgbox" id="msgbox" aria-live="polite"><span>${esc(last).replace(/\*\*(.+?)\*\*/g, '$1')}</span><i class="tri" aria-hidden="true"></i></button>`;
   } else {
@@ -1004,12 +1008,15 @@ function renderBattle() {
         </button>${summary}`;
     }).join('');
     const selP = UI.psel >= 0 ? req.side.pokemon[UI.psel] : null;
-    const canShift = selP && UI.psel >= nAct && !isFnt(selP) && !trapped && !pendingSwitch.has(UI.psel);
+    // Revival Blessing: the same menu, but you pick a fainted Pokémon to bring back
+    const reviving = force && !!req.side.pokemon[slot]?.reviving;
+    const canShift = reviving ? !!selP && isFnt(selP) && !pendingSwitch.has(UI.psel)
+      : selP && UI.psel >= nAct && !isFnt(selP) && !trapped && !pendingSwitch.has(UI.psel);
     const who = b.sides[0].active[slot]?.species.name || '';
-    const prompt = force ? (dbl ? `Choose a POKéMON to replace ${esc(who.toUpperCase())}.` : 'Choose a POKéMON.') : trapped ? 'You can\'t switch out right now.' : dbl ? `Switch out ${esc(who.toUpperCase())}? It uses its turn.` : 'Switch? It uses your turn.';
+    const prompt = reviving ? 'Choose a fainted POKéMON to revive.' : force ? (dbl ? `Choose a POKéMON to replace ${esc(who.toUpperCase())}.` : 'Choose a POKéMON.') : trapped ? 'You can\'t switch out right now.' : dbl ? `Switch out ${esc(who.toUpperCase())}? It uses its turn.` : 'Switch? It uses your turn.';
     const foot = UI.psel >= 0
-      ? `<div class="pfoot three"><button class="pbtn" id="p-shift" ${canShift ? '' : 'disabled'}>SWITCH</button><button class="pbtn" id="p-summary">SUMMARY</button><button class="pbtn" id="p-cancel">CANCEL</button></div>`
-      : `<div class="pfoot"><span>${prompt}</span>${force ? (canBack ? '<button class="pbtn sm" id="slot-back">BACK</button>' : '') : '<button class="pbtn sm" id="p-close">CANCEL</button>'}</div>`;
+      ? `<div class="pfoot three"><button class="pbtn" id="p-shift" ${canShift ? '' : 'disabled'}>${reviving ? 'REVIVE' : 'SWITCH'}</button><button class="pbtn" id="p-summary">SUMMARY</button><button class="pbtn" id="p-cancel">CANCEL</button></div>`
+      : `<div class="pfoot"><span>${prompt}</span>${force ? `${canBack ? '<button class="pbtn sm" id="slot-back">BACK</button>' : ''}<button class="pbtn sm" id="p-hide">HIDE</button>` : '<button class="pbtn sm" id="p-close">CANCEL</button>'}</div>`;
     party = `<div class="dim" aria-hidden="true"></div><div class="party" id="party" role="dialog" aria-label="Your party"><div class="plist" id="plist">${list}</div>${foot}</div>`;
   }
 
@@ -1493,12 +1500,13 @@ document.addEventListener('click', e => {
   if (t.id === 'slot-back') { slotBack(); return; }
   if (t.id === 'unchoose' || t.id === 'tgt-cancel') { UI.chosen = -1; renderBattle(); return; }
   if (t.id === 'msgbox') { advance?.(); return; }
-  if (t.id === 'open-party') { UI.party = true; UI.psel = -1; UI.summary = false; renderBattle(); return; }
+  if (t.id === 'p-hide') { UI.fhide = true; UI.party = false; UI.psel = -1; UI.summary = false; renderBattle(); return; }
+  if (t.id === 'open-party') { UI.fhide = false; UI.party = true; UI.psel = -1; UI.summary = false; renderBattle(); return; }
   if (t.id === 'p-close' || t.id === 'p-cancel') { if (t.id === 'p-cancel' && UI.psel >= 0) { UI.psel = -1; UI.summary = false; } else UI.party = false; renderBattle(); return; }
   if (t.id === 'open-party') { UI.chosen = -1; }
   if (t.dataset.pick !== undefined) { const i = +t.dataset.pick; UI.summary = UI.psel === i ? UI.summary : false; UI.psel = i; renderBattle(); return; }
   if (t.id === 'p-summary') { UI.summary = !UI.summary; renderBattle(); return; }
-  if (t.id === 'p-shift' && UI.psel > 0) { const i = UI.psel; UI.party = false; UI.psel = -1; UI.summary = false; slotChoice('switch ' + (i + 1)); return; }
+  if (t.id === 'p-shift' && UI.psel >= 0 && !(t as HTMLButtonElement).disabled) { const i = UI.psel; UI.party = false; UI.psel = -1; UI.summary = false; slotChoice('switch ' + (i + 1)); return; }
   if (t.id === 'run') { UI.run = true; UI.chosen = -1; renderBattle(); return; }
   if (t.id === 'run-no') { UI.run = false; renderBattle(); return; }
   if (t.id === 'run-yes') { resetUI(); forfeitAndRetry(true); return; }
@@ -1660,6 +1668,6 @@ async function keepAwake() {
 document.addEventListener('visibilitychange', keepAwake);
 document.addEventListener('pointerdown', () => setTimeout(keepAwake, 0), {passive: true});
 // Test hook: end the current battle as a win (used by the automated browser tests)
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) (globalThis as any).__drDebug = {winBattle() { if (!S || S.ended) return; S.battle.winner = 'You'; S.battle.ended = true; S.queue = []; S.playing = false; finish(); render(); }};
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) (globalThis as any).__drDebug = {S: () => S, winBattle() { if (!S || S.ended) return; S.battle.winner = 'You'; S.battle.ended = true; S.queue = []; S.playing = false; finish(); render(); }};
 boot();
 void stat;
