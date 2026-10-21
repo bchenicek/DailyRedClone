@@ -920,7 +920,7 @@ function renderBattle() {
   const el = document.getElementById('battle');
   if (!el || !S) return;
   const {view} = S; const b = S.battle; const dbl = S.doubles;
-  const dots = (sid: 'p1' | 'p2') => view[sid].order.map(id => { const x = view[sid].mons[id]; return `<i class="${x.fainted ? 'out' : view[sid].active.includes(id) ? 'cur' : ''}"></i>`; }).join('');
+  const dots = (sid: 'p1' | 'p2') => view[sid].order.map(id => { const x = view[sid].mons[id]; return `<i class="${x.fainted ? 'out' : x.status ? 'st' : ''}" title="${esc(x.species)}${x.fainted ? ', fainted' : x.status ? `, ${esc(x.status.toUpperCase())}` : ''}"></i>`; }).join('');
   const req = b.sides[0].activeRequest; const s1 = b.sides[0];
   const waiting = !!S.watch || S.playing || S.ended || !s1.requestState || s1.isChoiceDone();
   if (!waiting && req) {
