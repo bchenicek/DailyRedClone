@@ -73,7 +73,12 @@ main.wrap { padding-block: 16px 8px; display: flex; flex-direction: column; gap:
 .controls { display: flex; gap: 12px 20px; flex-wrap: wrap; }
 .ctl { display: flex; flex-direction: column; gap: 4px; }
 /* Phones: Mode gets its own line, with Format and Red side by side underneath */
-@media (max-width: 599px) { .controls > .ctl:first-child { flex-basis: 100%; align-items: flex-start; } }
+@media (max-width: 599px) {
+  .controls > .ctl:first-child { flex-basis: 100%; align-items: flex-start; }
+  /* Compact pills so Format and Red (three options) fit side by side */
+  .controls { column-gap: 10px; }
+  .controls .seg button { padding: 6px 8px; font-size: 13px; }
+}
 .seg { display: inline-flex; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
 .seg button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; color: var(--muted); }
 .seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
@@ -484,7 +489,7 @@ td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: mid
 <script src="config.js?v=d8f79ac2ee"></script>
 <script src="web.js?v=5c726aa06f"></script>
 <script src="engine.js?v=aaa489e162"></script>
-<script src="app.js?v=48f6fe35c4"></script>
+<script src="app.js?v=5d9ea0bfb6"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
