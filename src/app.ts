@@ -27,8 +27,7 @@ const DIFFS: {id: Difficulty; label: string; blurb: string}[] = [
   {id: 'true', label: 'True Red', blurb: 'Red tries every option against each reply you could make and picks the one that holds up best. He takes a moment to think.'},
 ];
 const FMTS = [{id: 'singles', label: 'Singles'}, {id: 'doubles', label: 'Doubles'}];
-// True Red is only on the Claude page for now, not the website
-const pickDiffs = () => ((globalThis as any).DR_WEB_BUILD ? DIFFS.filter(d => d.id !== 'true') : DIFFS);
+const pickDiffs = () => DIFFS;
 /** Label and blurb for a full mode id such as "chaosD" (Chaos Doubles). */
 function modeInfo(m: Mode) {
   const b = ALL_MODES.find(x => x.id === baseMode(m))!;
@@ -54,7 +53,6 @@ const PREFS_KEY = 'dailyred:v1:prefs';
 }
 const prefs: Prefs = {mode: 'classic', diff: 'smart', fast: false, leads: {}, ...store(PREFS_KEY, {})};
 prefs.mode = liveMode(prefs.mode as Mode);
-if ((globalThis as any).DR_WEB_BUILD && prefs.diff === 'true') prefs.diff = 'smart';
 const savePrefs = () => {
   prefs.t = Date.now(); const ctx = watching?.prev || endlessCtx?.prev;
   let p: Prefs = ctx ? {...prefs, mode: ctx.mode, diff: ctx.diff, ...('leads' in ctx ? {leads: {...(ctx as any).leads}} : {})} : prefs;
@@ -597,7 +595,6 @@ let erun: EndlessRun | null = store<EndlessRun | null>(ERUN_KEY, null);
 let edone: EndlessDone[] = store<EndlessDone[]>(EDONE_KEY, []);
 const eprefs: {mode: Mode; diff: Difficulty} = {mode: 'classic', diff: 'smart', ...store(EPREFS_KEY, {})};
 eprefs.mode = liveMode(eprefs.mode);
-if ((globalThis as any).DR_WEB_BUILD && eprefs.diff === 'true') eprefs.diff = 'smart';
 let endlessCtx: null | {prev: {S: Session | null; practice: string | null; mode: Mode; diff: Difficulty; leads: Record<string, number>}} = null;
 const runKey = (r: EndlessRun) => `x${r.id}-${r.n}${r.cn ? 'c' : ''}${r.cs ? 's' : ''}`; // sorts after every date, so all of today's team rules apply
 /** Save the run on this device and back it up to the account, so another device can carry on with it. */
@@ -1260,7 +1257,7 @@ function howHTML() {
     <h3>Singles and Doubles</h3>
     <p>Every mode can be played as Singles or Doubles. Both formats (and every difficulty) use the same six Pokémon that day, and each keeps its own attempts and stats. In Classic Doubles your Pokémon use Showdown's Random Doubles sets (often with Protect) where one exists; Chaos sets are identical in both formats. In Doubles both sides send out two Pokémon at once and all six battle. You pick two leads, choose a move (and its target) for each of your Pokémon every turn, and Red uses the same six with moves built for doubles, like Fake Out, Protect and spread attacks.</p>
     <h3>Red</h3>
-    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.${WEB ? '' : ' <b>True Red</b> thinks ahead: for each of his options he plays the turn out against every reply you could make, and picks the option that holds up best against your strongest answers. He doesn\'t know the battle\'s luck in advance, and he takes a moment to think each turn.'}</p>
+    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.${' <b>True Red</b> thinks ahead: for each of his options he plays the turn out against every reply you could make, and picks the option that holds up best against your strongest answers. He doesn\'t know the battle\'s luck in advance, and he takes a moment to think each turn.'}</p>
     <h3>Rules</h3>
     <p>Gen 9 mechanics with National Dex rules, so older moves like Pursuit and Hidden Power still work. No Mega Evolution, Z-Moves, Dynamax or Terastallization. Every team is fully evolved. Outside Chaos, Legendary, Mythical and Ultra Beast Pokémon (and the legendary Paradox Pokémon) aren't in the pool.</p>
     ${WEB ? `<h3>Install it on your phone</h3>
@@ -1646,8 +1643,7 @@ function applyCloud(docs: Record<string, any>) {
     if (tab === 'endless' && endlessCtx && !(S && S.choices.length > (erun!.choices?.length || 0))) { exitEndless(); enterEndless(); }
   } else if (erun && (!cr || (erun.t || 0) > (cr.t || 0))) cloudSet('endless_cur', {...erun, t: erun.t || Date.now()});
   if (docs.endless_runs?.list) { const ids = new Set(edone.map(r => r.id)); for (const r of docs.endless_runs.list as EndlessDone[]) if (!ids.has(r.id)) edone.push(r); edone.sort((a, b) => a.ended - b.ended); save(EDONE_KEY, edone); }
-  if (cp && (cp.t || 0) > (prefs.t || 0) && !endlessCtx && !watching) { Object.assign(prefs, cp); prefs.mode = liveMode(prefs.mode as Mode);
-if ((globalThis as any).DR_WEB_BUILD && prefs.diff === 'true') prefs.diff = 'smart'; save(PREFS_KEY, prefs); }
+  if (cp && (cp.t || 0) > (prefs.t || 0) && !endlessCtx && !watching) { Object.assign(prefs, cp); prefs.mode = liveMode(prefs.mode as Mode); save(PREFS_KEY, prefs); }
   else if (!cp || (prefs.t || 0) > (cp.t || 0)) cloudSet('prefs', {...prefs});
   type Cur = {lead: number | number[]; choices: string[]; t?: number};
   const seenKeys = new Set<string>();
