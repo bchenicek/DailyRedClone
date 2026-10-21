@@ -1,4 +1,4 @@
-import {trStore, generateTeam, newBattle, redTeamFor, redChoice, battleSeed, localDateKey, dayNumber, stat, baseMode, isDoublesMode, type BaseMode,
+import {trStore, trueRedJob, type SearchJob, generateTeam, newBattle, redTeamFor, redChoice, battleSeed, localDateKey, dayNumber, stat, baseMode, isDoublesMode, type BaseMode,
   type Mode, type Difficulty, type Pool, type PokemonSet} from './game';
 import {BattleTextParser} from './textparser';
 import {packReplay, unpackReplay, bestAttempt, loadAttempts, addAttempt, attemptsFor, computeStats, isFlawless, store, save, cloudInit, cloudSet, cloudDel, onSyncChange, syncState, BOARD, MY_ID, NAMES, onBoardChange, summarize, publishSummary, type Attempt, type DaySummary} from './stats';
@@ -95,7 +95,7 @@ interface SideView { active: string[]; mons: Record<string, MonView>; order: str
 interface Session {
   endless?: boolean;
   watch?: {id: string; date: string; key: string; who: string; choices: string[]; i: number; paused?: boolean; lead: number | number[]; turns: number[]};
-  battle: any; memo: {lastSwitchTurn: number}; choices: string[]; logIndex: number; thinking?: boolean;
+  battle: any; memo: {lastSwitchTurn: number}; choices: string[]; logIndex: number; thinking?: boolean; redJob?: SearchJob | null;
   view: {p1: SideView; p2: SideView; weather: string; turn?: number};
   messages: string[]; queue: string[][]; playing: boolean; parser: any;
   lead: number | number[]; doubles: boolean; ended: boolean; recorded: boolean;
@@ -133,7 +133,7 @@ function orderedTeam(lead: number | number[]) {
 // ---------------- Battle session ----------------
 function emptySide(): SideView { return {active: [], mons: {}, order: []}; }
 
-function startSession(lead: number | number[], replay: string[] = []) {
+function startSession(lead: number | number[], replay: string[] = [], live = false) {
   const doubles = isDoublesMode(prefs.mode);
   const battle = newBattle(orderedTeam(lead), battleSeed(playDate(), prefs.mode), doubles, redTeamFor(playDate(), prefs.mode));
   const parser = new BattleTextParser('p1');
@@ -146,7 +146,8 @@ function startSession(lead: number | number[], replay: string[] = []) {
       S.view[sid].order.push(ident);
     }
   }
-  pump();
+  // A fresh True Red battle: he works out his first move while you pick yours, instead of before the screen appears
+  if (live && !replay.length && prefs.diff === 'true') startRedThinking(); else pump();
   for (const c of replay) { if (battle.ended) break; S.choices.push(c); battle.choose('p1', c); pump(); }
   // Fast-forward the log without animation
   const lines = collectLines();
@@ -155,6 +156,27 @@ function startSession(lead: number | number[], replay: string[] = []) {
   if (battle.ended) finish();
 }
 
+const owes = (side: any) => !!side.requestState && !side.isChoiceDone();
+/**
+ * True Red thinks in the background, in short slices, while you choose (and while the last turn animates). He works
+ * from the battle as it stands before your choice goes in, and his choice is entered first when you commit, exactly
+ * as when he decides up front, so replays and resumed battles play out the same.
+ */
+function startRedThinking() {
+  if (!S || S.watch || prefs.diff !== 'true') return;
+  const b = S.battle;
+  if (S.redJob || !owes(b.sides[1]) || !owes(b.sides[0])) return;
+  const job = trueRedJob(b); const sess = S;
+  sess.redJob = job;
+  const tick = () => { if (S !== sess || sess.redJob !== job || job.done) return; if (!job.step(12)) setTimeout(tick, 0); };
+  setTimeout(tick, 0);
+}
+/** Enter Red's choice if he still owes one: True Red's background answer, or a decision made now. */
+function settleRed() {
+  if (!S) return;
+  const b = S.battle;
+  if (S.redJob) { const job = S.redJob; S.redJob = null; if (owes(b.sides[1])) b.choose('p2', job.finish()); }
+}
 /** Let Red make every choice he owes. */
 function pump() {
   const b = S!.battle; let guard = 0;
@@ -268,10 +290,11 @@ function choose(choice: string) {
   const b = S.battle;
   const s1 = b.sides[0];
   if (!s1.requestState || s1.isChoiceDone()) return;
+  settleRed();
   try { b.choose('p1', choice); } catch (e) { console.error(e); return; }
   S.choices.push(choice);
-  // True Red takes a moment, so he thinks after this turn has played out (see playQueue) instead of before it
-  if (prefs.diff !== 'true') pump();
+  // Simple and Smart decide instantly; True Red starts thinking about his next move in the background
+  if (prefs.diff !== 'true') pump(); else startRedThinking();
   saveCurrent({lead: S.lead, choices: S.choices});
   if (S.endless && erun) { erun.choices = S.choices.slice(); erun.lead = S.lead; saveRun(); }
   S.queue.push(...collectLines());
@@ -289,12 +312,13 @@ function playQueue() {
       if (S.battle.ended) { finish(); render(); return; }
       if (S.watch) { if (S.watch.paused) resumeFn = watchStep; else watchTimer = setTimeout(watchStep, prefs.fast ? 250 : 600); renderBattle(); return; }
       const s2 = S.battle.sides[1];
-      if (s2.requestState && !s2.isChoiceDone()) {
+      if (owes(s2) && owes(S.battle.sides[0])) startRedThinking(); // he keeps thinking while you choose
+      else if (owes(s2)) {
         // Red still owes a choice (True Red): show that he's thinking, then let him decide and play whatever follows
         S.playing = true; S.thinking = true; renderBattle();
         setTimeout(() => {
           if (!S) return;
-          pump(); S.thinking = false;
+          if (S.redJob) settleRed(); pump(); S.thinking = false;
           const more = collectLines();
           if (more.length) { S.queue.push(...more); playQueue(); } else { S.playing = false; renderBattle(); }
         }, 60);
@@ -1498,7 +1522,7 @@ document.addEventListener('click', e => {
   if (t.dataset.efmt) { eprefs.mode = withFmt(baseMode(eprefs.mode), t.dataset.efmt === 'doubles'); save(EPREFS_KEY, eprefs); render(); return; }
   if (t.dataset.ediff) { eprefs.diff = t.dataset.ediff as Difficulty; save(EPREFS_KEY, eprefs); render(); return; }
   if (t.id === 'e-start') { startRun(); render(); window.scrollTo(0, 0); return; }
-  if (t.id === 'e-battle' && erun) { resetUI(); UI.sel = 0; const l = isDoublesMode(erun.mode) ? leadList() : leadIdx(); startSession(l); S!.endless = true; erun.lead = l; erun.lastTeam = team.map(x => x.species); saveRun(); render(); document.getElementById('battle')?.scrollIntoView({block: 'start'}); return; }
+  if (t.id === 'e-battle' && erun) { resetUI(); UI.sel = 0; const l = isDoublesMode(erun.mode) ? leadList() : leadIdx(); startSession(l, [], true); S!.endless = true; erun.lead = l; erun.lastTeam = team.map(x => x.species); saveRun(); render(); document.getElementById('battle')?.scrollIntoView({block: 'start'}); return; }
   if (t.id === 'e-next') { nextBattle(); render(); window.scrollTo(0, 0); return; }
   if (t.id === 'e-giveup' || t.id === 'e-quit') {
     if (!t.dataset.confirm) { t.dataset.confirm = '1'; t.textContent = 'Tap again to end the run'; setTimeout(() => { if (t.isConnected) { delete t.dataset.confirm; t.textContent = t.id === 'e-quit' ? 'End run' : 'END RUN'; } }, 3000); return; }
@@ -1538,7 +1562,7 @@ document.addEventListener('click', e => {
     prefs.leads[leadKey()] = l[0]; prefs.leads[leadKey() + ':b'] = l[1];
     savePrefs(); render(); return;
   }
-  if (t.id === 'start') { resetUI(); UI.sel = 0; startSession(isDoublesMode(prefs.mode) ? leadList() : leadIdx()); render(); document.getElementById('battle')?.scrollIntoView({block: 'start'}); return; }
+  if (t.id === 'start') { resetUI(); UI.sel = 0; startSession(isDoublesMode(prefs.mode) ? leadList() : leadIdx(), [], true); render(); document.getElementById('battle')?.scrollIntoView({block: 'start'}); return; }
   if (t.dataset.move) { UI.chosen = UI.sel = +t.dataset.move - 1; UI.run = false; renderBattle(); return; } // in doubles this opens the target picker
   if (t.id === 'use' && UI.chosen >= 0) { const i = UI.chosen; slotChoice('move ' + (i + 1)); return; }
   if (t.dataset.target && UI.chosen >= 0) { slotChoice(t.dataset.target === 'all' ? `move ${UI.chosen + 1}` : `move ${UI.chosen + 1} ${t.dataset.target}`); return; }

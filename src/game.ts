@@ -758,86 +758,72 @@ export function trPlayout(snap: string, si: number, mine: string, theirs: string
   return si === 1 ? trEval(c, cfg) : -trEval(c, cfg);
 }
 
-/** Fictitious play on a payoff table (rows: our options, columns: replies); returns our mix of options. */
-function solveMix(M: number[][]): number[] {
-  const R = M.length, C = M[0].length;
-  const rowCount = new Array(R).fill(0), colCount = new Array(C).fill(0);
-  const rowPay = new Array(R).fill(0), colPay = new Array(C).fill(0);
-  let r = 0;
-  for (let it = 0; it < 400; it++) {
-    rowCount[r]++;
-    for (let j = 0; j < C; j++) colPay[j] += M[r][j];
-    let c = 0; for (let j = 1; j < C; j++) if (colPay[j] < colPay[c] - 1e-9) c = j;
-    colCount[c]++;
-    for (let i = 0; i < R; i++) rowPay[i] += M[i][c];
-    r = 0; for (let i = 1; i < R; i++) if (rowPay[i] > rowPay[r] + 1e-9) r = i;
-  }
-  return rowCount.map(x => x / 400);
-}
+export interface SearchJob { done: boolean; step(ms: number): boolean; finish(): string }
 
-/** Search-based choice for side si (1 = Red). */
-export function searchChoice(b: any, si: number, cfg: typeof TR = TR): string {
+/**
+ * Search-based choice for side si (1 = Red), done in small steps so it can run while the page stays responsive.
+ * Everything it needs is read from the battle when the job starts, so the real battle can move on (your choice
+ * being entered) without affecting it.
+ */
+export function startSearch(b: any, si: number, cfg: typeof TR = TR): SearchJob {
   const mine = trOptions(b, si);
-  if (mine.length <= 1) return mine[0] || 'default';
+  if (mine.length <= 1) { const only = mine[0] || 'default'; return {done: true, step: () => true, finish: () => only}; }
   const yours = trOptions(b, 1 - si);
   const snap = JSON.stringify(b.toJSON());
   const key = `${hashText(snap.length + '|' + b.inputLog.join('\n'))}|${si}`;
-  // Assume the other side answers well: weigh the worst outcome most, and the next-worst replies too
-  const judge = (vals: number[]) => {
-    vals.sort((x, y) => x - y);
-    if (cfg.tau > 0) { // the other side leans toward its best replies, but not always the single best one
-      const w = vals.map(v => Math.exp(-(v - vals[0]) / cfg.tau)); const sw = w.reduce((a, b) => a + b, 0);
-      return vals.reduce((s, v, i) => s + v * w[i], 0) / sw;
-    }
-    const low = vals.slice(0, 3); return cfg.minW * vals[0] + (1 - cfg.minW) * low.reduce((s, v) => s + v, 0) / low.length;
+  const forced = !!b.sides[si].activeRequest?.forceSwitch;
+  const pref = aiChoice(b, 'smart', {lastSwitchTurn: -9}, si); // Smart's pick, for near-ties
+  const cols = yours.length ? yours : [null];
+  const vals: number[][] = mine.map(() => []);
+  let i = 0, j = 0, result = '';
+  // Assume the other side answers well: replies are weighted toward the ones that are best for it
+  const judge = (v: number[]) => {
+    v = [...v].sort((x, y) => x - y);
+    if (cfg.tau > 0) { const w = v.map(x => Math.exp(-(x - v[0]) / cfg.tau)); const sw = w.reduce((a, c) => a + c, 0); return v.reduce((t, x, k) => t + x * w[k], 0) / sw; }
+    const low = v.slice(0, 3); return cfg.minW * v[0] + (1 - cfg.minW) * low.reduce((t, x) => t + x, 0) / low.length;
   };
-  const outcome = (r: string, y: string | null, k: number) => {
+  const one = () => {
+    const r = mine[i], y = cols[j];
     // With common luck (crn) every option is tried against the same luck, so differences come from the choices
-    let v = 0; for (let i = 0; i <= k; i++) v += trPlayout(snap, si, r, y, cfg.crn ? `tr|${key}|${i}` : `tr|${key}|${r}|${y}|${i}`, cfg); return v / (k + 1);
+    let v = 0; for (let k = 0; k < cfg.samples; k++) v += trPlayout(snap, si, r, y, cfg.crn ? `tr|${key}|${k}` : `tr|${key}|${r}|${y}|${k}`, cfg);
+    vals[i].push(v / cfg.samples);
+    if (++j >= cols.length) { j = 0; i++; }
   };
-  if (cfg.nash && yours.length) {
-    // Payoff table for every pair of choices, then the mix of options that does best against any reply
-    const M = mine.map(r => yours.map(y => outcome(r, y, cfg.samples - 1)));
-    const mix = solveMix(M);
-    let bi = 0; for (let i = 1; i < mix.length; i++) if (mix[i] > mix[bi] + 1e-9) bi = i;
-    return mine[bi];
-  }
-  if (cfg.model && yours.length) { // test mode: assume the other side plays exactly like Smart
-    const y = aiChoice(b, 'smart', {lastSwitchTurn: -9}, 1 - si);
-    const sc = mine.map(r => ({r, score: outcome(r, y, cfg.samples - 1)}));
-    return sc.reduce((a, x) => (x.score > a.score + 1e-9 ? x : a)).r;
-  }
-  // The reply a sensible player would most likely make (Smart's pick), blended with the strongest replies
-  const likely = cfg.blend > 0 && yours.length ? aiChoice(b, 'smart', {lastSwitchTurn: -9}, 1 - si) : null;
-  const scored = mine.map(r => {
-    if (!yours.length) return {r, score: outcome(r, null, cfg.samples - 1)};
-    const vals = yours.map(y => outcome(r, y, cfg.samples - 1));
-    const li = likely ? yours.indexOf(likely) : -1;
-    const soft = judge([...vals]);
-    return {r, score: li >= 0 ? cfg.blend * vals[li] + (1 - cfg.blend) * soft : soft};
-  });
-  // Look again, with more luck samples, at the options that came out on top
-  if (cfg.refineTop > 0 && cfg.refineSamples > 0) {
-    const top = [...scored].sort((a, b) => b.score - a.score).slice(0, cfg.refineTop);
-    for (const t of top) t.score = yours.length ? judge(yours.map(y => outcome(t.r, y, cfg.refineSamples))) : outcome(t.r, null, cfg.refineSamples);
-  }
-  // Switching costs a turn; and between near-equal options, go with what Smart judgement would do
-  for (const x of scored) if (/^switch/.test(x.r) && !b.sides[si].activeRequest?.forceSwitch) x.score -= cfg.swCost;
-  const top = Math.max(...scored.map(x => x.score));
-  const near = scored.filter(x => x.score >= top - cfg.tie);
-  let best = near[0].r;
-  if (near.length > 1) {
-    const pref = aiChoice(b, 'smart', {lastSwitchTurn: -9}, si);
-    if (near.some(x => x.r === pref)) best = pref;
-    else best = near.reduce((a, x) => (x.score > a.score ? x : a)).r;
-  }
-  return best;
+  const conclude = () => {
+    const scored = mine.map((r, k) => ({r, score: yours.length ? judge(vals[k]) : vals[k][0]}));
+    // Switching costs a turn; and between near-equal options, go with what Smart judgement would do
+    for (const x of scored) if (/^switch/.test(x.r) && !forced) x.score -= cfg.swCost;
+    const top = Math.max(...scored.map(x => x.score));
+    const near = scored.filter(x => x.score >= top - cfg.tie);
+    result = near[0].r;
+    if (near.length > 1) result = near.some(x => x.r === pref) ? pref : near.reduce((a, x) => (x.score > a.score ? x : a)).r;
+    job.done = true;
+  };
+  const job: SearchJob = {
+    done: false,
+    step(ms: number) {
+      if (job.done) return true;
+      const t0 = Date.now();
+      while (i < mine.length && Date.now() - t0 < ms) one();
+      if (i >= mine.length) conclude();
+      return job.done;
+    },
+    finish() { while (!job.done) job.step(1e9); return result; },
+  };
+  return job;
 }
 
-export function trueRedChoice(b: any): string {
-  const key = `${hashText(b.inputLog.join('\n'))}|${b.inputLog.length}|${b.turn}`;
-  const hit = trStore.get(key); if (hit) return hit;
-  const best = searchChoice(b, 1);
-  trStore.set(key, best);
-  return best;
+export function searchChoice(b: any, si: number, cfg: typeof TR = TR): string { return startSearch(b, si, cfg).finish(); }
+
+const trKey = (b: any) => `${hashText(b.inputLog.join('\n'))}|${b.inputLog.length}|${b.turn}`;
+/** True Red's choice, thought out in steps (see startSearch); remembered once made. */
+export function trueRedJob(b: any): SearchJob {
+  const key = trKey(b);
+  const hit = trStore.get(key);
+  if (hit) return {done: true, step: () => true, finish: () => hit};
+  const job = startSearch(b, 1);
+  const finish = job.finish;
+  job.finish = () => { const r = finish(); trStore.set(key, r); return r; };
+  return job;
 }
+export function trueRedChoice(b: any): string { return trueRedJob(b).finish(); }
