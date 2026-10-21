@@ -193,7 +193,7 @@ function applyLine([line]: string[], silent = false) {
         prev.boosts = {}; prev.sub = false;
         if (real) { prev.hp = real.fainted ? 0 : Math.round(real.hp / real.maxhp * prev.maxhp); prev.status = real.status || ''; }
       }
-    } else if (m) { if (args[2]) m.form = args[2].split(',')[0]; const h = parseHP(args[3]); m.hp = h.hp; if (h.max) m.maxhp = h.max; m.status = h.status; m.boosts = {}; }
+    } else if (m) { if (args[2]) m.form = args[2].split(',')[0]; const h = parseHP(args[3]); m.hp = h.hp; if (h.max) m.maxhp = h.max; m.status = h.status; m.boosts = {}; if (h.hp > 0) m.fainted = false; }
     v[sd].active[posOf(args[1])] = id;
     break;
   }
@@ -203,7 +203,7 @@ function applyLine([line]: string[], silent = false) {
     break;
   }
   case '-damage': case '-heal': case '-sethp': {
-    const m = mon(args[1]); if (m) { const h = parseHP(args[2]); m.hp = h.hp; if (h.max) m.maxhp = h.max; m.status = h.status; }
+    const m = mon(args[1]); if (m) { const h = parseHP(args[2]); m.hp = h.hp; if (h.max) m.maxhp = h.max; m.status = h.status; if (h.hp > 0) m.fainted = false; } // Revival Blessing heals a fainted Pokémon
     break;
   }
   case '-status': { const m = mon(args[1]); if (m) m.status = args[2]; break; }
