@@ -174,8 +174,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .spr.big.me { --s: 168px !important; }
 /* Doubles: two Pokémon per side */
 .scene.dbl { height: clamp(300px, 84vw, 410px); }
-.scene.dbl .foe-card { top: 8px; left: 8px; width: min(50%, 270px); display: flex; flex-direction: column; gap: 5px; }
-.scene.dbl .me-card { right: 8px; bottom: 6px; width: min(50%, 270px); display: flex; flex-direction: column; gap: 5px; }
+.scene.dbl .foe-card { top: 8px; left: 8px; width: min(calc(50% - 12px), 270px); display: flex; flex-direction: column; gap: 5px; }
+.scene.dbl .me-card { right: 8px; bottom: 6px; width: min(calc(50% - 12px), 270px); z-index: 4; display: flex; flex-direction: column; gap: 5px; }
 .scene.dbl .wx { left: auto; right: 10px; bottom: auto; top: 47%; }
 .card.sm { padding: 4px 8px 5px; gap: 3px; box-shadow: 3px 3px 0 rgba(8,12,24,.55); }
 .card.sm .cn { font-size: 14px; }
@@ -184,7 +184,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .card.sm .cfoot { min-height: 0; }
 .card.sm .bsts { gap: 2px; }
 .card.turn { border-color: var(--c-gold); box-shadow: 0 0 0 2px var(--c-gold), 3px 3px 0 rgba(8,12,24,.55); }
-.sidelbl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #f4f2ea; padding: 0 2px; letter-spacing: .06em; }
+.sidelbl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #f4f2ea; padding: 2px 8px; letter-spacing: .06em; align-self: flex-start; background: rgba(28,35,53,.82); border-radius: 8px; }
+.me-card .sidelbl { align-self: flex-end; }
 .sidelbl .reds { color: #ff8b84; }
 
 .foe-mons { position: absolute; right: 1%; top: 10%; width: 50%; height: 38%; display: flex; align-items: flex-end; justify-content: center; }
