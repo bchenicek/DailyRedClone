@@ -1443,7 +1443,9 @@ function rollDay() {
 let bootRestored = 0;
 function restore() {
   if (practice) return;
-  const cur = store<{lead: number | number[]; choices: string[]} | null>(currentKey(), null);
+  const cur = store<{lead: number | number[]; choices: string[]; t?: number} | null>(currentKey(), null);
+  // An attempt recorded after this battle was last played means it was already finished or restarted
+  if (cur?.t && attemptsFor(loadAttempts(), today, prefs.mode, prefs.diff).some(a => a.at > cur.t!)) { clearCurrent(); return; }
   if (cur && Array.isArray(cur.choices) && cur.choices.length) {
     try { startSession(cur.lead, cur.choices); } catch (e) { console.error(e); S = null; }
   }
@@ -1619,6 +1621,10 @@ function applyCloud(docs: Record<string, any>) {
     const [, date, mode, diff] = id.split('_');
     if (date !== today) { cloudDel(id); continue; }
     const key = `dailyred:v2:current:${date}:${mode}:${diff}`; seenKeys.add(key);
+    // Left over from a battle that was finished or restarted afterwards (its delete never reached the server)
+    if (body.t && attemptsFor(loadAttempts(), date, mode as Mode, diff as Difficulty).some(a => a.at > body.t)) {
+      cloudDel(id); try { localStorage.removeItem(key); } catch { /* ignore */ } continue;
+    }
     const local = store<Cur | null>(key, null);
     // The most recently played copy wins (by time when both have one, otherwise the longer battle)
     const cloudNewer = !local || (body.t && local.t ? body.t > local.t : (body.choices?.length || 0) > (local.choices?.length || 0));

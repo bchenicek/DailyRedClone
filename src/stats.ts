@@ -59,6 +59,10 @@ function write(id: string, op: (ref: any) => Promise<unknown>, path?: string) {
       if (e?.code === 'invalid_argument' || e?.code === 'not_granted' || e?.code === 'revoked') { DB = null; setSync('readonly'); }
     }
   };
+  // The website (Firestore) applies writes in the order they're made and saves them on the phone straight away, so
+  // send each one immediately. Waiting for the server to confirm each write before sending the next left a backlog
+  // on slow connections; closing the app then lost the newest writes (like deleting a finished battle).
+  if (MONTHLY) { void run(); return; }
   chains[id] = (chains[id] || Promise.resolve()).then(run);
 }
 export const cloudSet = (id: string, body: Record<string, unknown>) => write(id, ref => ref.set(body));
