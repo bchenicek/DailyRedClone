@@ -290,7 +290,8 @@ details.block[open] > summary h2::after { content: " ▾"; }
 .pbtn:disabled { opacity: .4; }
 .pbtn:not(:disabled):active { transform: translateY(1px); }
 .runq { margin: 0; font-size: 15px; }
-.dim { position: fixed; inset: 0; background: rgba(40,44,56,.55); z-index: 20; }
+.dim { position: fixed; left: 0; right: 0; top: -50vh; bottom: -50vh; background: rgba(40,44,56,.55); z-index: 20; transform: translateZ(0); pointer-events: auto; }
+.dim[hidden] { display: none; }
 .party { box-sizing: border-box; position: absolute; left: -6px; right: -6px; top: 0; min-height: 100%; background: var(--c-frame); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 9px; z-index: 21; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
 .pm { display: grid; grid-template-columns: 58px 1fr minmax(118px, 44%); align-items: center; gap: 10px; background: #2f4f8c; color: #fff; border: 3px solid #253f72; border-radius: 14px; padding: 5px 12px 5px 5px; text-align: left; font-family: var(--f-display); }
 .pm.act { background: #4c74c6; border-color: var(--c-gold); }

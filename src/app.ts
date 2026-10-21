@@ -365,6 +365,7 @@ function forfeitAndRetry(record: boolean) {
 
 // ---------------- Rendering ----------------
 function render() {
+  queueMicrotask(syncDim);
   keepAwake();
   const root = $('#app');
   const y = window.scrollY;
@@ -906,7 +907,15 @@ function slotBack() {
   renderBattle();
 }
 
+// Page dimming behind the Pokémon / target menus. It lives directly on <body> (not inside the battle box) and is
+// taller than the screen, so iPhone Safari can't cut it off partway down while scrolling.
+function syncDim() {
+  let d = document.getElementById('pagedim');
+  if (!d) { d = document.createElement('div'); d.id = 'pagedim'; d.className = 'dim'; d.setAttribute('aria-hidden', 'true'); document.body.appendChild(d); }
+  d.hidden = !document.querySelector('#party, #tgtpop');
+}
 function renderBattle() {
+  queueMicrotask(syncDim);
   keepAwake();
   const el = document.getElementById('battle');
   if (!el || !S) return;
