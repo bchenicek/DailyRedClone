@@ -392,7 +392,7 @@ function headerHTML() {
     <h1 class="logo">DAILY <span>RED</span></h1>
     <div class="dl">No. ${dayNumber(today)}, ${esc(date)}<br><span id="cd"></span></div>
     <nav class="tabs" role="tablist">
-      ${(['play', 'endless', 'stats', 'friends', 'how'] as const).map(t => `<button role="tab" id="tab-${t}" aria-selected="${tab === t}" data-tab="${t}">${{play: 'Play', endless: 'Endless', stats: 'Stats', friends: 'Friends', how: 'How to play'}[t]}</button>`).join('')}
+      ${(['play', 'endless', 'stats', 'friends', 'how'] as const).map(t => `<button role="tab" id="tab-${t}" aria-selected="${(watching ? 'friends' : tab) === t}" data-tab="${t}">${{play: 'Play', endless: 'Endless', stats: 'Stats', friends: 'Friends', how: 'How to play'}[t]}</button>`).join('')}
     </nav></div></header>`;
 }
 
@@ -537,7 +537,7 @@ function exitWatch(rerender: boolean) {
 }
 function watchBanner() {
   const w = S!.watch!;
-  return `<div class="practice" id="practice"><div><span class="lbl">Replay</span><b>${esc(w.who)} best · No. ${dayNumber(w.date)} · ${esc(modeInfo(prefs.mode).label)} · ${esc(DIFFS.find(d => d.id === prefs.diff)!.label)}</b><span class="hint">Use the controls under the battle to pause or jump between turns. Nothing here is counted.</span></div>
+  return `<div class="practice" id="practice"><div><span class="lbl">Replay</span><b>${esc(w.who)} best · No. ${dayNumber(w.date)} · ${esc(modeInfo(prefs.mode).label)} · ${esc(DIFFS.find(d => d.id === prefs.diff)!.label)}</b><span class="hint">Use the controls under the battle to pause or jump between turns.</span></div>
     <button class="ghost" id="watch-exit">Back to friends</button></div>`;
 }
 function practiceBanner() {
