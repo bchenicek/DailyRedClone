@@ -7,7 +7,7 @@ export type BaseMode = 'classic' | 'chaos' | 'random';
 export type Mode = BaseMode | 'classicD' | 'chaosD' | 'randomD';
 export const baseMode = (m: Mode) => m.replace(/D$/, '') as BaseMode;
 export const isDoublesMode = (m: Mode) => m.endsWith('D');
-export type Difficulty = 'smart' | 'simple';
+export type Difficulty = 'smart' | 'simple' | 'true';
 export interface PoolEntry {
   name: string; num: number; types: string[]; bs: Record<string, number>; abilities: string[];
   gen: number; moves: string[]; w: number; forme: string; base: string;
@@ -60,11 +60,15 @@ const NEUTRAL = ['Hardy', 'Docile', 'Serious', 'Bashful', 'Quirky'];
 // From Oct 21, 2026 (and in every Endless run) your Pokémon get what the original Daily Red gives them: a random nature
 // out of all 25 and random IVs from 25 to 31. Both come from their own seed, so the Pokémon, moves and battle luck don't change.
 const RANDOM_NATURES_FROM = '2026-10-21';
+/** Chaos: one damaging move of each of the Pokémon's types, from this date (Endless runs with the 's' flag). */
+export const CHAOS_STAB_FROM = '2026-10-22';
+/** Endless keys look like x<run id>-<battle number><flags>; returns the flags, or null for a daily date. */
+export function endlessFlags(key: string): string | null { const m = /^x[^-]*-\d+([a-z]*)$/.exec(key); return m ? m[1] : null; }
 const ALL_NATURES = ['Adamant', 'Bashful', 'Bold', 'Brave', 'Calm', 'Careful', 'Docile', 'Gentle', 'Hardy', 'Hasty', 'Impish', 'Jolly', 'Lax',
   'Lonely', 'Mild', 'Modest', 'Naive', 'Naughty', 'Quiet', 'Quirky', 'Rash', 'Relaxed', 'Sassy', 'Serious', 'Timid'];
 function withNatures(team: PokemonSet[], date: string, mode: Mode) {
   // Classic keeps neutral natures. Endless runs started before this rule (keys without the 'c' suffix) keep random ones to the end.
-  const legacyEndless = date.startsWith('x') && !date.endsWith('c');
+  const legacyEndless = endlessFlags(date) !== null && !endlessFlags(date)!.includes('c');
   const randomNatures = date >= RANDOM_NATURES_FROM && !isMudkipDay(date, mode) && (baseMode(mode) !== 'classic' || legacyEndless);
   if (randomNatures) return team.map(s => {
     const prng = new PS.PRNG(seedFor(`daily-red|${date}|${baseMode(mode)}|${s.species}|nature`));
@@ -132,7 +136,9 @@ export function generateTeam(pool: Pool, date: string, mode: Mode): PokemonSet[]
     while (picked.length < 6) add(ids);
   }
   // Same Pokémon in Singles and Doubles; Classic Doubles swaps in Showdown's doubles set where one exists
-  const stab = baseMode(mode) === 'random' && date >= RANDOM_STAB_FROM;
+  const fl = endlessFlags(date);
+  const stab = baseMode(mode) === 'random' ? date >= RANDOM_STAB_FROM
+    : baseMode(mode) === 'chaos' && (fl === null ? date >= CHAOS_STAB_FROM : fl.includes('s'));
   return withGenders(ordered(withNatures(picked.map(id => makeSet(pool, id, baseMode(mode), prng, isDoublesMode(mode), stab)), date, mode), date), date, mode);
 }
 
@@ -150,7 +156,17 @@ function makeSet(pool: Pool, id: string, mode: BaseMode, prng: any, doubles = fa
   const item = pool.items[prng.random(pool.items.length)];
   const legal = e.moves.filter(m => m !== 'struggle');
   let moves: string[];
-  if (mode === 'chaos') {
+  if (mode === 'chaos' && stab) {
+    // Chaos from Oct 22, 2026: a damaging move of each of the Pokémon's own types first, then any legal moves
+    const types = PS.Dex.species.get(e.name).types as string[];
+    const shuffled = sample(legal, legal.length, prng);
+    moves = [];
+    for (const t of types) {
+      const pick = shuffled.find(m => { const mv = PS.Dex.moves.get(m); return mv.category !== 'Status' && mv.type === t && !m.startsWith('hiddenpower') && !moves.includes(m); });
+      if (pick) moves.push(pick);
+    }
+    for (const m of shuffled) { if (moves.length >= 4) break; if (!moves.includes(m)) moves.push(m); }
+  } else if (mode === 'chaos') {
     moves = sample(legal, Math.min(4, legal.length), prng);
   } else {
     const species = PS.Dex.species.get(e.name);
@@ -361,11 +377,17 @@ const SETUP: Record<string, string> = {curse: 'atk', calmmind: 'spa', shellsmash
 const SLEEP_MOVES = ['sleeppowder', 'spore', 'hypnosis', 'lovelykiss', 'sing', 'grasswhistle', 'darkvoid', 'yawn'];
 
 export function redChoice(battle: any, diff: Difficulty, memo: {lastSwitchTurn: number; protectTurn?: Record<number, number>}): string {
-  if (battle.gameType === 'doubles') return redChoiceDoubles(battle, diff, memo);
-  const side = battle.sides[1];
+  if (diff === 'true') return trueRedChoice(battle);
+  return aiChoice(battle, diff, memo, 1);
+}
+
+/** Simple/Smart decision for side si (1 = Red). True Red also uses this to play out future turns for both sides. */
+export function aiChoice(battle: any, diff: Difficulty, memo: {lastSwitchTurn: number; protectTurn?: Record<number, number>}, si: number): string {
+  if (battle.gameType === 'doubles') return redChoiceDoubles(battle, diff, memo, si);
+  const side = battle.sides[si];
   const req = side.activeRequest;
-  const foe = battle.sides[0].active[0];
-  if (req?.forceSwitch) return 'switch ' + (pickReplacement(battle, diff) + 1);
+  const foe = battle.sides[1 - si].active[0];
+  if (req?.forceSwitch) return 'switch ' + (pickReplacement(battle, diff, si) + 1);
   const me = side.active[0];
   const opts = (req?.active?.[0]?.moves || []).map((m: any, i: number) => ({...m, slot: i + 1}))
     .filter((m: any) => !m.disabled && (m.pp === undefined || m.pp > 0));
@@ -403,7 +425,7 @@ export function redChoice(battle: any, diff: Difficulty, memo: {lastSwitchTurn: 
       const boosted = me.boosts[stat] >= (id === 'shellsmash' ? 1 : 2);
       if (!boosted && !willDie && threat < me.hp * 0.45 && me.hp > me.maxhp * 0.55) s = 140;
     } else if (SLEEP_MOVES.includes(id)) {
-      const foeSideAsleep = battle.sides[0].pokemon.some((p: any) => p.status === 'slp' && !p.fainted);
+      const foeSideAsleep = battle.sides[1 - si].pokemon.some((p: any) => p.status === 'slp' && !p.fainted);
       const immune = foe.status || foe.hasType('Grass') && mv.flags?.powder ||
         ['insomnia', 'vitalspirit', 'sweetveil', 'overcoat', 'comatose', 'purifyingsalt', 'goodasgold'].includes(foe.ability) ||
         foe.item === 'safetygoggles' && mv.flags?.powder || battle.field.isTerrain('electricterrain') || battle.field.isTerrain('mistyterrain');
@@ -433,13 +455,13 @@ export function redChoice(battle: any, diff: Difficulty, memo: {lastSwitchTurn: 
   return `move ${best.slot}`;
 }
 
-function pickReplacement(battle: any, diff: Difficulty): number {
-  const side = battle.sides[1]; const foe = battle.sides[0].active[0];
+function pickReplacement(battle: any, diff: Difficulty, si = 1): number {
+  const side = battle.sides[si]; const foe = battle.sides[1 - si].active[0];
   const alive = side.pokemon.map((p: any, i: number) => ({p, i})).filter(({p, i}: any) => i > 0 && !p.fainted);
   if (!alive.length) return 1;
   if (diff === 'simple' || !foe || foe.fainted) {
     // team order (by original slot)
-    const order = (p: any) => RED_TEAM.findIndex(r => r.species === p.species.name);
+    const order = (p: any) => si === 1 ? RED_TEAM.findIndex(r => r.species === p.species.name) : side.team.findIndex((t: any) => t.name === p.name);
     alive.sort((a: any, b: any) => order(a.p) - order(b.p));
     return alive[0].i;
   }
@@ -481,15 +503,15 @@ const SPREAD_FOES = ['allAdjacentFoes'];
 const SPREAD_ALL = ['allAdjacent'];
 const SINGLE_TARGET = ['normal', 'any', 'adjacentFoe', 'randomNormal'];
 
-function redChoiceDoubles(battle: any, diff: Difficulty, memo: {protectTurn?: Record<number, number>}): string {
-  const side = battle.sides[1]; const req = side.activeRequest;
-  const foes: any[] = battle.sides[0].active;
+function redChoiceDoubles(battle: any, diff: Difficulty, memo: {protectTurn?: Record<number, number>}, si = 1): string {
+  const side = battle.sides[si]; const req = side.activeRequest;
+  const foes: any[] = battle.sides[1 - si].active;
   memo.protectTurn ||= {};
   if (req?.forceSwitch) {
     const used = new Set<number>();
     return req.forceSwitch.map((must: boolean, slot: number) => {
       if (!must) return 'pass';
-      const i = pickReplacementDoubles(battle, diff, used);
+      const i = pickReplacementDoubles(battle, diff, used, si);
       if (i < 0) return 'pass';
       used.add(i); return `switch ${i + 1}`;
     }).join(', ');
@@ -551,7 +573,7 @@ function redChoiceDoubles(battle: any, diff: Difficulty, memo: {protectTurn?: Re
         continue;
       }
       if (SLEEP_MOVES.includes(o.id)) {
-        const anyAsleep = battle.sides[0].pokemon.some((p: any) => p.status === 'slp' && !p.fainted);
+        const anyAsleep = battle.sides[1 - si].pokemon.some((p: any) => p.status === 'slp' && !p.fainted);
         if (anyAsleep) continue;
         for (const {f, i} of liveFoes) {
           const immune = f.status || f.hasType('Grass') && mv.flags?.powder || f.item === 'safetygoggles' && mv.flags?.powder ||
@@ -572,21 +594,250 @@ function redChoiceDoubles(battle: any, diff: Difficulty, memo: {protectTurn?: Re
   return out.join(', ');
 }
 
-function pickReplacementDoubles(battle: any, diff: Difficulty, used: Set<number>): number {
-  const side = battle.sides[1];
+function pickReplacementDoubles(battle: any, diff: Difficulty, used: Set<number>, si = 1): number {
+  const side = battle.sides[si];
   const bench = side.pokemon.map((p: any, i: number) => ({p, i})).filter(({p, i}: any) => i >= side.active.length && !p.fainted && !used.has(i));
   if (!bench.length) return -1;
   if (diff === 'simple') {
-    const order = (p: any) => RED_TEAM.findIndex(r => r.species === p.species.name);
+    const order = (p: any) => si === 1 ? RED_TEAM.findIndex(r => r.species === p.species.name) : side.team.findIndex((t: any) => t.name === p.name);
     bench.sort((a: any, b: any) => order(a.p) - order(b.p));
     return bench[0].i;
   }
-  const foes = battle.sides[0].active.filter((f: any) => f && !f.fainted);
+  const foes = battle.sides[1 - si].active.filter((f: any) => f && !f.fainted);
   let best = bench[0].i, bestScore = -Infinity;
   for (const {p, i} of bench) {
     let s = 0;
     for (const f of foes) s += Math.min(bestDamage(battle, p, f).dmg / Math.max(1, f.hp), 1.2) - Math.min(bestDamage(battle, f, p).dmg / p.hp, 1.2);
     if (s > bestScore) { bestScore = s; best = i; }
   }
+  return best;
+}
+
+
+// ---------- True Red ----------
+// Looks ahead instead of reacting to the current turn. For every option Red has, and every reply you could make,
+// it plays the turn out on a copy of the battle, then plays two more turns with both sides using Smart Red's
+// judgement, and scores the position. Red then picks the option whose outcome holds up best against your best
+// replies. The copies use their own luck (never the real battle's), and the same position always gives the same
+// choice, so replays and resumed battles play out identically.
+/** Search settings (fixed, so every device makes the same choices). */
+export const TR = {extra: 2, refineTop: 0, refineSamples: 0, minW: 0.6, crn: false, nash: false, samples: 1, tau: 0, tie: 0, swCost: 0, model: false, blend: 0, mw: 0, bw: 0.08};
+const trCache = new Map<string, string>();
+/** Where True Red's past decisions are remembered (the page swaps in one that survives a reload). */
+export const trStore = {get: (k: string): string | undefined => trCache.get(k), set: (k: string, v: string) => { if (trCache.size > 3000) trCache.clear(); trCache.set(k, v); }};
+function hashText(t: string): string {
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < t.length; i++) { const c = t.charCodeAt(i); h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0; h2 = Math.imul(h2 ^ c, 0x5bd1e995) >>> 0; }
+  return h1.toString(36) + h2.toString(36);
+}
+
+function trOptions(b: any, si: number): string[] {
+  const side = b.sides[si]; const req = side.activeRequest;
+  if (!req || req.wait || side.isChoiceDone()) return [];
+  const foeSide = b.sides[1 - si];
+  const nAct = side.active.length;
+  const bench = side.pokemon.map((p: any, i: number) => ({p, i})).filter(({p, i}: any) => i >= nAct && !p.fainted);
+  if (b.gameType !== 'doubles') {
+    if (req.forceSwitch) return bench.map(({i}: any) => `switch ${i + 1}`);
+    const r = req.active?.[0]; if (!r) return ['default'];
+    const moves = (r.moves || []).map((m: any, i: number) => ({m, i})).filter(({m}: any) => !m.disabled && (m.pp === undefined || m.pp > 0))
+      .map(({i}: any) => `move ${i + 1}`);
+    const sw = r.trapped || r.maybeTrapped ? [] : bench.map(({i}: any) => `switch ${i + 1}`);
+    const all = [...moves, ...sw];
+    return all.length ? all : ['default'];
+  }
+  // Doubles: the best few options for each slot (by a quick estimate), combined
+  const slotOpts: {c: string; s: number; sw?: number}[][] = [];
+  for (let k = 0; k < nAct; k++) {
+    const mon = side.active[k];
+    if (req.forceSwitch) {
+      if (!req.forceSwitch[k]) { slotOpts.push([{c: 'pass', s: 0}]); continue; }
+      const o = bench.map(({p, i}: any) => ({c: `switch ${i + 1}`, s: trMatchup(b, p, foeSide), sw: i}));
+      slotOpts.push(o.length ? o : [{c: 'pass', s: 0}]); continue;
+    }
+    const r = req.active?.[k];
+    if (!r || !mon || mon.fainted || r.commanding) { slotOpts.push([{c: 'pass', s: 0}]); continue; }
+    const o: {c: string; s: number; sw?: number}[] = [];
+    const foes = foeSide.active.map((f: any, j: number) => ({f, j})).filter(({f}: any) => f && !f.fainted);
+    (r.moves || []).forEach((m: any, i: number) => {
+      if (m.disabled || (m.pp !== undefined && m.pp <= 0)) return;
+      const mv = b.dex.moves.get(m.id); const tgt = m.target || mv.target;
+      if (mv.category === 'Status') { o.push({c: `move ${i + 1}`, s: ['protect', 'detect'].includes(m.id) ? 0.45 : 0.35}); return; }
+      if (['normal', 'any', 'adjacentFoe'].includes(tgt)) {
+        for (const {f, j} of foes) { const d = estimateDamage(b, mon, f, m.id); o.push({c: `move ${i + 1} ${j + 1}`, s: Math.min(1.2, d / Math.max(1, f.hp)) + (d >= f.hp ? 0.5 : 0)}); }
+      } else {
+        let s = 0; for (const {f} of foes) { const d = estimateDamage(b, mon, f, m.id) * 0.75; s += Math.min(1.2, d / Math.max(1, f.hp)) + (d >= f.hp ? 0.5 : 0); }
+        o.push({c: `move ${i + 1}`, s});
+      }
+    });
+    if (!(r.trapped || r.maybeTrapped)) for (const {p, i} of bench) o.push({c: `switch ${i + 1}`, s: trMatchup(b, p, foeSide) * 0.5, sw: i});
+    o.sort((x, y) => y.s - x.s);
+    slotOpts.push(o.slice(0, 3).length ? o.slice(0, 3) : [{c: 'default', s: 0}]);
+  }
+  const out: string[] = [];
+  const combine = (k: number, acc: {c: string; sw?: number}[]) => {
+    if (k === slotOpts.length) { out.push(acc.map(x => x.c).join(', ')); return; }
+    for (const x of slotOpts[k]) { if (x.sw !== undefined && acc.some(a => a.sw === x.sw)) continue; combine(k + 1, [...acc, x]); }
+  };
+  combine(0, []);
+  return out.length ? out : ['default'];
+}
+
+function trMatchup(b: any, p: any, foeSide: any): number {
+  let s = 0;
+  for (const f of foeSide.active) if (f && !f.fainted) s += Math.min(bestDamage(b, p, f).dmg / Math.max(1, f.hp), 1.2) - Math.min(bestDamage(b, f, p).dmg / Math.max(1, p.hp), 1.2);
+  return s;
+}
+
+const STATUS_COST: Record<string, number> = {slp: 0.35, frz: 0.45, par: 0.2, brn: 0.15, psn: 0.12, tox: 0.2};
+/** How good the position is for Red: Pokémon left, their HP, status, stat changes and hazards. */
+function trEval(c: any, cfg = TR): number {
+  if (c.ended) return c.winner === 'RED' ? 1000 : c.winner === 'You' ? -1000 : 0;
+  let matchup = 0;
+  if (cfg.mw > 0) {
+    // Who wins the next exchange between the Pokémon on the field: damage each can do, and who moves first
+    const tr = c.field.getPseudoWeather?.('trickroom');
+    for (const a of c.sides[1].active) for (const p of c.sides[0].active) {
+      if (!a || !p || a.fainted || p.fainted) continue;
+      const da = Math.min(1, bestDamage(c, a, p).dmg / Math.max(1, p.hp)), dp = Math.min(1, bestDamage(c, p, a).dmg / Math.max(1, a.hp));
+      const sa = stat(a, 'spe'), sp = stat(p, 'spe'); const aFirst = tr ? sa < sp : sa > sp;
+      let m = da - dp;
+      if (da >= 1 && (aFirst || dp < 1)) m += 0.6;
+      if (dp >= 1 && (!aFirst || da < 1)) m -= 0.6;
+      matchup += m;
+    }
+    matchup /= Math.max(1, c.sides[0].active.length);
+  }
+  const val = (side: any) => {
+    let v = 0, alive = 0;
+    for (const p of side.pokemon) {
+      if (p.fainted || p.hp <= 0) continue;
+      alive++; v += 1 + p.hp / p.maxhp - (STATUS_COST[p.status] || 0);
+    }
+    for (const p of side.active) if (p && !p.fainted) {
+      let bs = 0; for (const k of ['atk', 'def', 'spa', 'spd', 'spe']) bs += (p.boosts[k] || 0) * (k === 'atk' || k === 'spa' || k === 'spe' ? cfg.bw : 0.08);
+      v += Math.max(-0.8, Math.min(0.8, bs));
+      if (p.volatiles?.substitute) v += 0.15;
+    }
+    const sc = side.sideConditions || {};
+    if (sc.stealthrock) v -= 0.06 * alive;
+    if (sc.spikes) v -= 0.04 * alive * (sc.spikes.layers || 1);
+    if (sc.toxicspikes) v -= 0.05 * alive;
+    if (sc.stickyweb) v -= 0.04 * alive;
+    if (sc.reflect || sc.lightscreen || sc.auroraveil) v += 0.15;
+    if (sc.tailwind) v += 0.15;
+    return v;
+  };
+  return val(c.sides[1]) - val(c.sides[0]) + cfg.mw * matchup;
+}
+
+function trChoose(c: any, si: number, choice: string) {
+  try { if (c.choose(si === 0 ? 'p1' : 'p2', choice)) return; } catch { /* fall through */ }
+  try { c.choose(si === 0 ? 'p1' : 'p2', 'default'); } catch { /* ignore */ }
+}
+
+/** Play the given choices, then a few more turns with Smart judgement on both sides, and score the result. */
+export function trPlayout(snap: string, si: number, mine: string, theirs: string | null, seed: string, cfg = TR): number {
+  // A fresh copy from text: copying the live object directly would share its log with the real battle
+  const c = PS.Battle.fromJSON(snap);
+  c.prng = new PS.PRNG(seedFor(seed));
+  c.send = () => {};
+  const t0 = c.turn;
+  trChoose(c, si, mine);
+  if (theirs !== null) trChoose(c, 1 - si, theirs);
+  const memos = [{lastSwitchTurn: -9}, {lastSwitchTurn: -9}];
+  for (let g = 0; g < 60 && !c.ended && c.turn < t0 + 1 + cfg.extra; g++) {
+    let acted = false;
+    for (const k of [1, 0]) {
+      const side = c.sides[k];
+      if (side.requestState && !side.isChoiceDone()) { trChoose(c, k, aiChoice(c, 'smart', memos[k], k)); acted = true; break; }
+    }
+    if (!acted) break;
+  }
+  return si === 1 ? trEval(c, cfg) : -trEval(c, cfg);
+}
+
+/** Fictitious play on a payoff table (rows: our options, columns: replies); returns our mix of options. */
+function solveMix(M: number[][]): number[] {
+  const R = M.length, C = M[0].length;
+  const rowCount = new Array(R).fill(0), colCount = new Array(C).fill(0);
+  const rowPay = new Array(R).fill(0), colPay = new Array(C).fill(0);
+  let r = 0;
+  for (let it = 0; it < 400; it++) {
+    rowCount[r]++;
+    for (let j = 0; j < C; j++) colPay[j] += M[r][j];
+    let c = 0; for (let j = 1; j < C; j++) if (colPay[j] < colPay[c] - 1e-9) c = j;
+    colCount[c]++;
+    for (let i = 0; i < R; i++) rowPay[i] += M[i][c];
+    r = 0; for (let i = 1; i < R; i++) if (rowPay[i] > rowPay[r] + 1e-9) r = i;
+  }
+  return rowCount.map(x => x / 400);
+}
+
+/** Search-based choice for side si (1 = Red). */
+export function searchChoice(b: any, si: number, cfg: typeof TR = TR): string {
+  const mine = trOptions(b, si);
+  if (mine.length <= 1) return mine[0] || 'default';
+  const yours = trOptions(b, 1 - si);
+  const snap = JSON.stringify(b.toJSON());
+  const key = `${hashText(snap.length + '|' + b.inputLog.join('\n'))}|${si}`;
+  // Assume the other side answers well: weigh the worst outcome most, and the next-worst replies too
+  const judge = (vals: number[]) => {
+    vals.sort((x, y) => x - y);
+    if (cfg.tau > 0) { // the other side leans toward its best replies, but not always the single best one
+      const w = vals.map(v => Math.exp(-(v - vals[0]) / cfg.tau)); const sw = w.reduce((a, b) => a + b, 0);
+      return vals.reduce((s, v, i) => s + v * w[i], 0) / sw;
+    }
+    const low = vals.slice(0, 3); return cfg.minW * vals[0] + (1 - cfg.minW) * low.reduce((s, v) => s + v, 0) / low.length;
+  };
+  const outcome = (r: string, y: string | null, k: number) => {
+    // With common luck (crn) every option is tried against the same luck, so differences come from the choices
+    let v = 0; for (let i = 0; i <= k; i++) v += trPlayout(snap, si, r, y, cfg.crn ? `tr|${key}|${i}` : `tr|${key}|${r}|${y}|${i}`, cfg); return v / (k + 1);
+  };
+  if (cfg.nash && yours.length) {
+    // Payoff table for every pair of choices, then the mix of options that does best against any reply
+    const M = mine.map(r => yours.map(y => outcome(r, y, cfg.samples - 1)));
+    const mix = solveMix(M);
+    let bi = 0; for (let i = 1; i < mix.length; i++) if (mix[i] > mix[bi] + 1e-9) bi = i;
+    return mine[bi];
+  }
+  if (cfg.model && yours.length) { // test mode: assume the other side plays exactly like Smart
+    const y = aiChoice(b, 'smart', {lastSwitchTurn: -9}, 1 - si);
+    const sc = mine.map(r => ({r, score: outcome(r, y, cfg.samples - 1)}));
+    return sc.reduce((a, x) => (x.score > a.score + 1e-9 ? x : a)).r;
+  }
+  // The reply a sensible player would most likely make (Smart's pick), blended with the strongest replies
+  const likely = cfg.blend > 0 && yours.length ? aiChoice(b, 'smart', {lastSwitchTurn: -9}, 1 - si) : null;
+  const scored = mine.map(r => {
+    if (!yours.length) return {r, score: outcome(r, null, cfg.samples - 1)};
+    const vals = yours.map(y => outcome(r, y, cfg.samples - 1));
+    const li = likely ? yours.indexOf(likely) : -1;
+    const soft = judge([...vals]);
+    return {r, score: li >= 0 ? cfg.blend * vals[li] + (1 - cfg.blend) * soft : soft};
+  });
+  // Look again, with more luck samples, at the options that came out on top
+  if (cfg.refineTop > 0 && cfg.refineSamples > 0) {
+    const top = [...scored].sort((a, b) => b.score - a.score).slice(0, cfg.refineTop);
+    for (const t of top) t.score = yours.length ? judge(yours.map(y => outcome(t.r, y, cfg.refineSamples))) : outcome(t.r, null, cfg.refineSamples);
+  }
+  // Switching costs a turn; and between near-equal options, go with what Smart judgement would do
+  for (const x of scored) if (/^switch/.test(x.r) && !b.sides[si].activeRequest?.forceSwitch) x.score -= cfg.swCost;
+  const top = Math.max(...scored.map(x => x.score));
+  const near = scored.filter(x => x.score >= top - cfg.tie);
+  let best = near[0].r;
+  if (near.length > 1) {
+    const pref = aiChoice(b, 'smart', {lastSwitchTurn: -9}, si);
+    if (near.some(x => x.r === pref)) best = pref;
+    else best = near.reduce((a, x) => (x.score > a.score ? x : a)).r;
+  }
+  if ((globalThis as any).TR_DEBUG) (globalThis as any).TR_DEBUG(b, si, scored, yours);
+  return best;
+}
+
+export function trueRedChoice(b: any): string {
+  const key = `${hashText(b.inputLog.join('\n'))}|${b.inputLog.length}|${b.turn}`;
+  const hit = trStore.get(key); if (hit) return hit;
+  const best = searchChoice(b, 1);
+  trStore.set(key, best);
   return best;
 }

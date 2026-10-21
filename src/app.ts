@@ -1,4 +1,4 @@
-import {generateTeam, newBattle, redTeamFor, redChoice, battleSeed, localDateKey, dayNumber, stat, baseMode, isDoublesMode, type BaseMode,
+import {trStore, generateTeam, newBattle, redTeamFor, redChoice, battleSeed, localDateKey, dayNumber, stat, baseMode, isDoublesMode, type BaseMode,
   type Mode, type Difficulty, type Pool, type PokemonSet} from './game';
 import {BattleTextParser} from './textparser';
 import {packReplay, unpackReplay, bestAttempt, loadAttempts, addAttempt, attemptsFor, computeStats, isFlawless, store, save, cloudInit, cloudSet, cloudDel, onSyncChange, syncState, BOARD, MY_ID, NAMES, onBoardChange, summarize, publishSummary, type Attempt, type DaySummary} from './stats';
@@ -12,19 +12,26 @@ const $ = (sel: string, root: ParentNode = document) => root.querySelector(sel) 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]!));
 const toID = (s: string) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-const MODES: {id: BaseMode; label: string; blurb: string}[] = [
+const ALL_MODES: {id: BaseMode; label: string; blurb: string}[] = [
   {id: 'classic', label: 'Classic', blurb: 'Curated competitive sets from Showdown Random Battles.'},
   {id: 'random', label: 'Random', blurb: 'Random ability and item, with moves that are usually useful.'},
-  {id: 'chaos', label: 'Chaos', blurb: 'Any legal moves, any ability, any held item. At least one Legendary or Mythical every day.'},
+  {id: 'chaos', label: 'Chaos', blurb: 'Any legal moves (including an attack of each of its types), any ability, any held item. At least one Legendary or Mythical every day.'},
 ];
+// Random is retired: old Random attempts keep their label, but it's no longer offered
+const MODES = ALL_MODES.filter(m => m.id !== 'random');
+/** Anything saved as Random (from before it was retired) opens as Classic instead. */
+const liveMode = (m: Mode) => (baseMode(m) === 'random' ? (isDoublesMode(m) ? 'classicD' : 'classic') : m) as Mode;
 const DIFFS: {id: Difficulty; label: string; blurb: string}[] = [
   {id: 'simple', label: 'Simple', blurb: 'Red always uses his hardest-hitting move and never switches.'},
   {id: 'smart', label: 'Smart', blurb: 'Red sets up, puts you to sleep, and switches out of bad matchups.'},
+  {id: 'true', label: 'True Red', blurb: 'Red plays out every option against each of your replies a few turns ahead, and picks the one that holds up best. He takes a moment to think.'},
 ];
 const FMTS = [{id: 'singles', label: 'Singles'}, {id: 'doubles', label: 'Doubles'}];
+// True Red is only on the Claude page for now, not the website
+const pickDiffs = () => ((globalThis as any).DR_WEB_BUILD ? DIFFS.filter(d => d.id !== 'true') : DIFFS);
 /** Label and blurb for a full mode id such as "chaosD" (Chaos Doubles). */
 function modeInfo(m: Mode) {
-  const b = MODES.find(x => x.id === baseMode(m))!;
+  const b = ALL_MODES.find(x => x.id === baseMode(m))!;
   return isDoublesMode(m) ? {...b, label: b.label + ' Doubles', blurb: b.blurb + ' Two Pokémon per side.'} : b;
 }
 const withFmt = (b: BaseMode, doubles: boolean) => (doubles ? b + 'D' : b) as Mode;
@@ -33,7 +40,21 @@ const STATUS_NAME: Record<string, string> = {psn: 'PSN', tox: 'TOX', brn: 'BRN',
 // ---------------- Prefs ----------------
 interface Prefs { mode: Mode; diff: Difficulty; fast: boolean; leads: Record<string, number>; t?: number }
 const PREFS_KEY = 'dailyred:v1:prefs';
+// True Red's decisions are kept on this device, so resuming a battle or rewatching a replay doesn't make him think again
+{
+  const TR_KEY = 'dailyred:v1:truered';
+  let mem: Record<string, string> = store(TR_KEY, {});
+  const base = {get: trStore.get, set: trStore.set};
+  trStore.get = k => mem[k] ?? base.get(k);
+  trStore.set = (k, v) => {
+    base.set(k, v); mem[k] = v;
+    const keys = Object.keys(mem); if (keys.length > 1500) mem = Object.fromEntries(keys.slice(-1000).map(x => [x, mem[x]]));
+    save(TR_KEY, mem);
+  };
+}
 const prefs: Prefs = {mode: 'classic', diff: 'smart', fast: false, leads: {}, ...store(PREFS_KEY, {})};
+prefs.mode = liveMode(prefs.mode as Mode);
+if ((globalThis as any).DR_WEB_BUILD && prefs.diff === 'true') prefs.diff = 'smart';
 const savePrefs = () => {
   prefs.t = Date.now(); const ctx = watching?.prev || endlessCtx?.prev;
   let p: Prefs = ctx ? {...prefs, mode: ctx.mode, diff: ctx.diff, ...('leads' in ctx ? {leads: {...(ctx as any).leads}} : {})} : prefs;
@@ -76,7 +97,7 @@ interface SideView { active: string[]; mons: Record<string, MonView>; order: str
 interface Session {
   endless?: boolean;
   watch?: {id: string; date: string; key: string; who: string; choices: string[]; i: number; paused?: boolean; lead: number | number[]; turns: number[]};
-  battle: any; memo: {lastSwitchTurn: number}; choices: string[]; logIndex: number;
+  battle: any; memo: {lastSwitchTurn: number}; choices: string[]; logIndex: number; thinking?: boolean;
   view: {p1: SideView; p2: SideView; weather: string; turn?: number};
   messages: string[]; queue: string[][]; playing: boolean; parser: any;
   lead: number | number[]; doubles: boolean; ended: boolean; recorded: boolean;
@@ -251,7 +272,8 @@ function choose(choice: string) {
   if (!s1.requestState || s1.isChoiceDone()) return;
   try { b.choose('p1', choice); } catch (e) { console.error(e); return; }
   S.choices.push(choice);
-  pump();
+  // True Red takes a moment, so he thinks after this turn has played out (see playQueue) instead of before it
+  if (prefs.diff !== 'true') pump();
   saveCurrent({lead: S.lead, choices: S.choices});
   if (S.endless && erun) { erun.choices = S.choices.slice(); erun.lead = S.lead; saveRun(); }
   S.queue.push(...collectLines());
@@ -268,6 +290,18 @@ function playQueue() {
       S.playing = false;
       if (S.battle.ended) { finish(); render(); return; }
       if (S.watch) { if (S.watch.paused) resumeFn = watchStep; else watchTimer = setTimeout(watchStep, prefs.fast ? 250 : 600); renderBattle(); return; }
+      const s2 = S.battle.sides[1];
+      if (s2.requestState && !s2.isChoiceDone()) {
+        // Red still owes a choice (True Red): show that he's thinking, then let him decide and play whatever follows
+        S.playing = true; S.thinking = true; renderBattle();
+        setTimeout(() => {
+          if (!S) return;
+          pump(); S.thinking = false;
+          const more = collectLines();
+          if (more.length) { S.queue.push(...more); playQueue(); } else { S.playing = false; renderBattle(); }
+        }, 60);
+        return;
+      }
       renderBattle(); return;
     }
     const line = S.queue.shift()!;
@@ -401,12 +435,12 @@ function controlsHTML() {
   if (tab !== 'play') return `<section class="controls">
     <div class="ctl"><span class="lbl">Mode</span>${seg('vmode', MODES, baseMode(view.mode))}</div>
     <div class="ctl"><span class="lbl">Format</span>${seg('vfmt', FMTS, isDoublesMode(view.mode) ? 'doubles' : 'singles')}</div>
-    <div class="ctl"><span class="lbl">Red</span>${seg('vdiff', DIFFS, view.diff)}</div>
+    <div class="ctl"><span class="lbl">Red</span>${seg('vdiff', pickDiffs(), view.diff)}</div>
   </section>`;
   return `<section class="controls">
     <div class="ctl"><span class="lbl">Mode</span>${seg('mode', MODES, baseMode(prefs.mode), busy())}</div>
     <div class="ctl"><span class="lbl">Format</span>${seg('fmt', FMTS, isDoublesMode(prefs.mode) ? 'doubles' : 'singles', busy())}</div>
-    <div class="ctl"><span class="lbl">Red</span>${seg('diff', DIFFS, prefs.diff, busy())}</div>
+    <div class="ctl"><span class="lbl">Red</span>${seg('diff', pickDiffs(), prefs.diff, busy())}</div>
   </section>${busy() ? '<p class="hint lockhint">Finish or restart this battle to change mode, format or difficulty.</p>' : ''}`;
 }
 function seg(name: string, items: {id: string; label: string}[], val: string, disabled = false) {
@@ -555,15 +589,17 @@ function startPractice(date: string) {
 // run is over. Teams and luck come from a random run id instead of the date, so every run is different.
 interface EndlessRun {
   id: string; mode: Mode; diff: Difficulty; n: number; wins: number; lost: number[]; turns: number[];
-  started: number; lead?: number | number[]; choices: string[]; over?: boolean; cleared?: number; t?: number; cn?: boolean; ended?: number; lastTeam?: string[]; redLeft?: number;
+  started: number; lead?: number | number[]; choices: string[]; over?: boolean; cleared?: number; t?: number; cn?: boolean; cs?: boolean; ended?: number; lastTeam?: string[]; redLeft?: number;
 }
 interface EndlessDone { id: string; mode: Mode; diff: Difficulty; wins: number; lost: number[]; started: number; ended: number; lastTeam?: string[]; redLeft?: number }
 const ERUN_KEY = 'dailyred:v1:endless:run', EDONE_KEY = 'dailyred:v1:endless:runs', EPREFS_KEY = 'dailyred:v1:endless:prefs';
 let erun: EndlessRun | null = store<EndlessRun | null>(ERUN_KEY, null);
 let edone: EndlessDone[] = store<EndlessDone[]>(EDONE_KEY, []);
 const eprefs: {mode: Mode; diff: Difficulty} = {mode: 'classic', diff: 'smart', ...store(EPREFS_KEY, {})};
+eprefs.mode = liveMode(eprefs.mode);
+if ((globalThis as any).DR_WEB_BUILD && eprefs.diff === 'true') eprefs.diff = 'smart';
 let endlessCtx: null | {prev: {S: Session | null; practice: string | null; mode: Mode; diff: Difficulty; leads: Record<string, number>}} = null;
-const runKey = (r: EndlessRun) => `x${r.id}-${r.n}${r.cn ? 'c' : ''}`; // sorts after every date, so all of today's team rules apply
+const runKey = (r: EndlessRun) => `x${r.id}-${r.n}${r.cn ? 'c' : ''}${r.cs ? 's' : ''}`; // sorts after every date, so all of today's team rules apply
 /** Save the run on this device and back it up to the account, so another device can carry on with it. */
 const saveRun = () => { if (erun) erun.t = Date.now(); save(ERUN_KEY, erun); if (erun) cloudSet('endless_cur', {...erun}); };
 const saveDone = () => { save(EDONE_KEY, edone); cloudSet('endless_runs', {list: edone.slice(-500)}); };
@@ -597,7 +633,7 @@ function exitEndless() {
   resetUI(); rebuildTeam();
 }
 function startRun() {
-  erun = {id: Math.random().toString(36).slice(2, 10), mode: eprefs.mode, diff: eprefs.diff, n: 1, wins: 0, lost: [], turns: [], started: Date.now(), choices: [], cn: true};
+  erun = {id: Math.random().toString(36).slice(2, 10), mode: eprefs.mode, diff: eprefs.diff, n: 1, wins: 0, lost: [], turns: [], started: Date.now(), choices: [], cn: true, cs: true};
   saveRun(); S = null; resetUI(); applyRun();
 }
 function endRun() {
@@ -658,7 +694,7 @@ function endlessHTML() {
       <section class="controls">
         <div class="ctl"><span class="lbl">Mode</span>${seg('emode', MODES, baseMode(eprefs.mode))}</div>
         <div class="ctl"><span class="lbl">Format</span>${seg('efmt', FMTS, isDoublesMode(eprefs.mode) ? 'doubles' : 'singles')}</div>
-        <div class="ctl"><span class="lbl">Red</span>${seg('ediff', DIFFS, eprefs.diff)}</div>
+        <div class="ctl"><span class="lbl">Red</span>${seg('ediff', pickDiffs(), eprefs.diff)}</div>
       </section>
       <section class="prebattle"><button class="go" id="e-start">${last ? 'Start a new run' : 'Start a run'}</button>
         <p class="note">Each battle's luck is new, so a run can't be replayed. Progress is saved if you leave mid-run.</p></section>`;
@@ -960,7 +996,7 @@ function renderBattle() {
       ? `<p class="runq">${S.endless ? 'Run? This forfeits the battle and ends your endless run.' : 'Run? This restarts the battle and counts as an attempt.'}</p><div class="lbtns"><button class="pbtn" id="run-yes">RUN</button><button class="pbtn" id="run-no">CANCEL</button></div>`
       : '<div class="lbtns"><button class="pbtn" id="open-party">POKéMON</button><button class="pbtn" id="run">RUN</button></div>'}</div>`;
   } else if (!choosing || force) {
-    const last = [...S.messages].reverse().find(m => !m.startsWith('—')) || '';
+    const last = S.thinking ? 'RED is thinking…' : [...S.messages].reverse().find(m => !m.startsWith('—')) || '';
     deck = `<button class="msgbox" id="msgbox" aria-live="polite"><span>${esc(last).replace(/\*\*(.+?)\*\*/g, '$1')}</span><i class="tri" aria-hidden="true"></i></button>`;
   } else {
     const moves = req.active[slot].moves;
@@ -1220,12 +1256,11 @@ function howHTML() {
     <p>Play as many times as you like. All the luck is fixed for the day: if you make the same choices in the same order, the battle plays out exactly the same way, down to every crit and miss. Your first attempt is your blind run; after that, keep going until you beat Red without losing a Pokémon.</p>
     <h3>Modes</h3>
     <ul><li><b>Classic.</b> Each Pokémon always gets the same competitive set, taken from Pokémon Showdown's Random Battle sets.</li>
-    <li><b>Random.</b> Random ability and item, but only moves that Showdown's teambuilder doesn't list as usually useless.</li>
-    <li><b>Chaos.</b> Any four moves the Pokémon can learn in its latest generation, any of its abilities, and any held item that does something in battle. Every Chaos team has at least one Legendary or Mythical Pokémon and at least one Pokémon with a base stat total of 450 or less; Ultra Beasts and Paradox Pokémon can show up too.</li></ul>
+    <li><b>Chaos.</b> Four moves the Pokémon can learn in its latest generation, always including a damaging move of each of its types, any of its abilities, and any held item that does something in battle. Every Chaos team has at least one Legendary or Mythical Pokémon and at least one Pokémon with a base stat total of 450 or less; Ultra Beasts and Paradox Pokémon can show up too.</li></ul>
     <h3>Singles and Doubles</h3>
-    <p>Every mode can be played as Singles or Doubles. Both formats (and both difficulties) use the same six Pokémon that day, and each keeps its own attempts and stats. In Classic Doubles your Pokémon use Showdown's Random Doubles sets (often with Protect) where one exists; Chaos and Random sets are identical in both formats. In Doubles both sides send out two Pokémon at once and all six battle. You pick two leads, choose a move (and its target) for each of your Pokémon every turn, and Red uses the same six with moves built for doubles, like Fake Out, Protect and spread attacks.</p>
+    <p>Every mode can be played as Singles or Doubles. Both formats (and every difficulty) use the same six Pokémon that day, and each keeps its own attempts and stats. In Classic Doubles your Pokémon use Showdown's Random Doubles sets (often with Protect) where one exists; Chaos sets are identical in both formats. In Doubles both sides send out two Pokémon at once and all six battle. You pick two leads, choose a move (and its target) for each of your Pokémon every turn, and Red uses the same six with moves built for doubles, like Fake Out, Protect and spread attacks.</p>
     <h3>Red</h3>
-    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.</p>
+    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.${WEB ? '' : ' <b>True Red</b> thinks ahead: for each of his options he plays out every reply you could make and picks the option that holds up best against your strongest answers. He doesn\'t know the battle\'s luck in advance, and he takes a moment to think each turn.'}</p>
     <h3>Rules</h3>
     <p>Gen 9 mechanics with National Dex rules, so older moves like Pursuit and Hidden Power still work. No Mega Evolution, Z-Moves, Dynamax or Terastallization. Every team is fully evolved. Outside Chaos, Legendary, Mythical and Ultra Beast Pokémon (and the legendary Paradox Pokémon) aren't in the pool.</p>
     ${WEB ? `<h3>Install it on your phone</h3>
@@ -1611,7 +1646,8 @@ function applyCloud(docs: Record<string, any>) {
     if (tab === 'endless' && endlessCtx && !(S && S.choices.length > (erun!.choices?.length || 0))) { exitEndless(); enterEndless(); }
   } else if (erun && (!cr || (erun.t || 0) > (cr.t || 0))) cloudSet('endless_cur', {...erun, t: erun.t || Date.now()});
   if (docs.endless_runs?.list) { const ids = new Set(edone.map(r => r.id)); for (const r of docs.endless_runs.list as EndlessDone[]) if (!ids.has(r.id)) edone.push(r); edone.sort((a, b) => a.ended - b.ended); save(EDONE_KEY, edone); }
-  if (cp && (cp.t || 0) > (prefs.t || 0) && !endlessCtx && !watching) { Object.assign(prefs, cp); save(PREFS_KEY, prefs); }
+  if (cp && (cp.t || 0) > (prefs.t || 0) && !endlessCtx && !watching) { Object.assign(prefs, cp); prefs.mode = liveMode(prefs.mode as Mode);
+if ((globalThis as any).DR_WEB_BUILD && prefs.diff === 'true') prefs.diff = 'smart'; save(PREFS_KEY, prefs); }
   else if (!cp || (prefs.t || 0) > (cp.t || 0)) cloudSet('prefs', {...prefs});
   type Cur = {lead: number | number[]; choices: string[]; t?: number};
   const seenKeys = new Set<string>();

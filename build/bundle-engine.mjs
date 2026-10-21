@@ -19,6 +19,6 @@ const dynPlugin = {
 await esbuild.build({
   entryPoints: ['/home/claude/dailyred/src/engine.js'], bundle: true, format: 'iife', globalName: 'PS',
   platform: 'browser', target: 'es2020', minify: true, outfile: '/home/claude/dailyred/out/engine.js',
-  plugins: [dynPlugin], logLevel: 'error', metafile: true, define: {'process.env.NODE_ENV': '"production"', global: 'globalThis'},
+  plugins: [dynPlugin], logLevel: 'error', metafile: true, keepNames: true, // Showdown's battle copying relies on class names define: {'process.env.NODE_ENV': '"production"', global: 'globalThis'},
 });
 const r = 0; console.log('engine', fs.statSync('/home/claude/dailyred/out/engine.js').size);
