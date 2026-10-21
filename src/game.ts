@@ -615,13 +615,14 @@ function pickReplacementDoubles(battle: any, diff: Difficulty, used: Set<number>
 
 
 // ---------- True Red ----------
-// Looks ahead instead of reacting to the current turn. For every option Red has, and every reply you could make,
-// it plays the turn out on a copy of the battle, then plays two more turns with both sides using Smart Red's
-// judgement, and scores the position. Red then picks the option whose outcome holds up best against your best
-// replies. The copies use their own luck (never the real battle's), and the same position always gives the same
-// choice, so replays and resumed battles play out identically.
+// For every option Red has, and every reply you could make, True Red plays the turn out on a copy of the battle and
+// scores the result: Pokémon left and their HP, status, stat boosts, hazards, and who wins the next exchange on the
+// field. Your replies are weighted toward the ones that are best for you. When several of Red's options come out
+// about even, he goes with what Smart Red would do. The copies use their own luck (never the real battle's), and the
+// same position always gives the same choice, so replays and resumed battles play out identically.
+// Settings were picked by playing hundreds of test battles against computer stand-ins for the player.
 /** Search settings (fixed, so every device makes the same choices). */
-export const TR = {extra: 2, refineTop: 0, refineSamples: 0, minW: 0.6, crn: false, nash: false, samples: 1, tau: 0, tie: 0, swCost: 0, model: false, blend: 0, mw: 0, bw: 0.08};
+export const TR = {extra: 0, refineTop: 0, refineSamples: 0, minW: 0.6, crn: true, nash: false, samples: 1, tau: 1, tie: 0.2, swCost: 0, model: false, blend: 0, mw: 0.5, bw: 0.15};
 const trCache = new Map<string, string>();
 /** Where True Red's past decisions are remembered (the page swaps in one that survives a reload). */
 export const trStore = {get: (k: string): string | undefined => trCache.get(k), set: (k: string, v: string) => { if (trCache.size > 3000) trCache.clear(); trCache.set(k, v); }};
@@ -830,7 +831,6 @@ export function searchChoice(b: any, si: number, cfg: typeof TR = TR): string {
     if (near.some(x => x.r === pref)) best = pref;
     else best = near.reduce((a, x) => (x.score > a.score ? x : a)).r;
   }
-  if ((globalThis as any).TR_DEBUG) (globalThis as any).TR_DEBUG(b, si, scored, yours);
   return best;
 }
 

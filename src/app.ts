@@ -24,7 +24,7 @@ const liveMode = (m: Mode) => (baseMode(m) === 'random' ? (isDoublesMode(m) ? 'c
 const DIFFS: {id: Difficulty; label: string; blurb: string}[] = [
   {id: 'simple', label: 'Simple', blurb: 'Red always uses his hardest-hitting move and never switches.'},
   {id: 'smart', label: 'Smart', blurb: 'Red sets up, puts you to sleep, and switches out of bad matchups.'},
-  {id: 'true', label: 'True Red', blurb: 'Red plays out every option against each of your replies a few turns ahead, and picks the one that holds up best. He takes a moment to think.'},
+  {id: 'true', label: 'True Red', blurb: 'Red tries every option against each reply you could make and picks the one that holds up best. He takes a moment to think.'},
 ];
 const FMTS = [{id: 'singles', label: 'Singles'}, {id: 'doubles', label: 'Doubles'}];
 // True Red is only on the Claude page for now, not the website
@@ -1260,7 +1260,7 @@ function howHTML() {
     <h3>Singles and Doubles</h3>
     <p>Every mode can be played as Singles or Doubles. Both formats (and every difficulty) use the same six Pokémon that day, and each keeps its own attempts and stats. In Classic Doubles your Pokémon use Showdown's Random Doubles sets (often with Protect) where one exists; Chaos sets are identical in both formats. In Doubles both sides send out two Pokémon at once and all six battle. You pick two leads, choose a move (and its target) for each of your Pokémon every turn, and Red uses the same six with moves built for doubles, like Fake Out, Protect and spread attacks.</p>
     <h3>Red</h3>
-    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.${WEB ? '' : ' <b>True Red</b> thinks ahead: for each of his options he plays out every reply you could make and picks the option that holds up best against your strongest answers. He doesn\'t know the battle\'s luck in advance, and he takes a moment to think each turn.'}</p>
+    <p>Red always has Pikachu, Espeon, Snorlax, Venusaur, Charizard and Blastoise at level 100, and always leads with Pikachu. On <b>Smart</b>, he picks moves that KO, sets up when he's safe, uses Sleep Powder, and switches out of losing matchups. On <b>Simple</b>, he always uses whichever move does the most damage and only switches when a Pokémon faints.${WEB ? '' : ' <b>True Red</b> thinks ahead: for each of his options he plays the turn out against every reply you could make, and picks the option that holds up best against your strongest answers. He doesn\'t know the battle\'s luck in advance, and he takes a moment to think each turn.'}</p>
     <h3>Rules</h3>
     <p>Gen 9 mechanics with National Dex rules, so older moves like Pursuit and Hidden Power still work. No Mega Evolution, Z-Moves, Dynamax or Terastallization. Every team is fully evolved. Outside Chaos, Legendary, Mythical and Ultra Beast Pokémon (and the legendary Paradox Pokémon) aren't in the pool.</p>
     ${WEB ? `<h3>Install it on your phone</h3>
