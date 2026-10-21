@@ -875,7 +875,7 @@ function targetPopupHTML(b: any, slot: number, m: any) {
     </button>`;
   };
   const hint = spec.kind === 'group' ? (spec.valid.length > 1 ? 'Hits every highlighted Pokémon. Tap one to confirm.' : 'Tap to confirm.') : 'Choose a target.';
-  return `<div class="dim" aria-hidden="true"></div><div class="party tgtpop" id="tgtpop" role="dialog" aria-label="Choose a target">
+  return `<div class="party tgtpop" id="tgtpop" role="dialog" aria-label="Choose a target">
     <div class="tside red"><span class="reds">RED</span></div>
     <div class="tgrid">${cell('p2a')}${cell('p2b')}</div>
     <div class="tmove"><i class="tsq t-${toID(type)}"></i>${esc(name.toUpperCase())}</div>
@@ -1017,7 +1017,7 @@ function renderBattle() {
     const foot = UI.psel >= 0
       ? `<div class="pfoot three"><button class="pbtn" id="p-shift" ${canShift ? '' : 'disabled'}>${reviving ? 'REVIVE' : 'SWITCH'}</button><button class="pbtn" id="p-summary">SUMMARY</button><button class="pbtn" id="p-cancel">CANCEL</button></div>`
       : `<div class="pfoot"><span>${prompt}</span>${force ? `${canBack ? '<button class="pbtn sm" id="slot-back">BACK</button>' : ''}<button class="pbtn sm" id="p-hide">HIDE</button>` : '<button class="pbtn sm" id="p-close">CANCEL</button>'}</div>`;
-    party = `<div class="dim" aria-hidden="true"></div><div class="party" id="party" role="dialog" aria-label="Your party"><div class="plist" id="plist">${list}</div>${foot}</div>`;
+    party = `<div class="party" id="party" role="dialog" aria-label="Your party"><div class="plist" id="plist">${list}</div>${foot}</div>`;
   }
 
   const weather = view.weather ? `<span class="wx">${esc(WEATHER_NAME[view.weather] || view.weather)}</span>` : '';
